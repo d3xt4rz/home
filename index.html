@@ -924,23 +924,25 @@
 
                             <div className="p-5 border-b border-gray-700">
                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                    
                                     <div className="filters-container">
                                         {[
                                             { label: "Todas", value: "all", icon: "fas fa-list" },
                                             { label: "Pendentes", value: "pending", icon: "fas fa-hourglass-half" },
                                             { label: "Hoje", value: "today", icon: "fas fa-calendar-day" },
                                             { label: "Atrasadas", value: "overdue", icon: "fas fa-exclamation-triangle" },
-                                            { label: "       ", value: "completed", icon: "fas fa-check-circle" }
+                                            { label: "", value: "completed", icon: "fas fa-check-circle" }
                                         ].map(({ label, value, icon }) => (
                                             <button
                                                 key={value}
                                                 onClick={() => setFilter(value)}
                                                 disabled={isLoading}
-                                                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-medium transition-all duration-300 text-sm whitespace-nowrap ${
+                                                className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg font-medium transition-all duration-300 text-sm whitespace-nowrap min-w-[4.5rem] ${
                                                     filter === value
                                                         ? "bg-purple-600 text-white"
                                                         : "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
                                                 } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                title={value === "completed" ? "Concluídas" : ""}
                                             >
                                                 <i className={icon} style={{fontSize: '0.85em'}}></i>
                                                 <span>{label}</span>
