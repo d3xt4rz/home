@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de Tarefas Compartilhada</title>
+    <title>Lista de Tarefas Compartilhada - Tempo Real</title>
     <style>
         * {
             margin: 0;
@@ -36,6 +36,19 @@
             margin-bottom: 30px;
             font-size: 2.5em;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background-color: #dc3545;
+        }
+
+        .status-indicator.connected {
+            background-color: #28a745;
         }
 
         .input-container {
@@ -84,6 +97,7 @@
             overflow-y: auto;
             padding: 10px 0;
             margin-top: 10px;
+            min-height: 200px;
         }
 
         li {
@@ -140,25 +154,42 @@
 
         .status {
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             margin-top: 20px;
             padding-top: 15px;
             border-top: 1px solid #eee;
-            color: #28a745;
+            color: #666;
             font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .no-tasks {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
             font-weight: bold;
         }
 
-        .status.error {
+        .connection-status.disconnected {
             color: #dc3545;
         }
 
-        .connected {
+        .connection-status.connected {
             color: #28a745;
-        }
-
-        .disconnected {
-            color: #dc3545;
         }
 
         /* Scroll personalizado */
@@ -179,57 +210,15 @@
         ul::-webkit-scrollbar-thumb:hover {
             background: #5a6fd8;
         }
-
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-        }
-
-        .api-key-container {
-            margin-bottom: 20px;
-            display: flex;
-            gap: 10px;
-        }
-
-        #apiKey {
-            flex: 1;
-            padding: 10px 15px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-        }
-
-        #connectBtn {
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 15px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.3s;
-        }
-
-        #connectBtn:hover {
-            background: #218838;
-        }
-
-        .connection-container {
-            margin-bottom: 20px;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📝 Lista de Tarefas Compartilhada</h1>
         
-        <div class="connection-container">
-            <div class="api-key-container">
-                <input type="text" id="apiKey" placeholder="Sua chave de API do Firebase" value="AIzaSyBMlMkubD980K5ynN5Ud3XEYNWK3Q8RklU">
-                <button id="connectBtn">Conectar</button>
-            </div>
-            <div class="status" id="connectionStatus">⚠️ Não conectado</div>
+        <div class="connection-status disconnected">
+            <span class="status-indicator"></span>
+            <span id="connectionText">Não conectado ao Firebase</span>
         </div>
         
         <div class="input-container">
@@ -238,194 +227,147 @@
         </div>
         
         <ul id="taskList">
-            <li class="loading">Aguardando conexão com o Firebase...</li>
+            <li class="loading">Conectando ao Firebase...</li>
         </ul>
         
         <div class="status">
             <span id="taskCount">0 tarefas</span>
+            <span id="userCount">1 usuário online</span>
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
-
-    <script>
-        // Variáveis globais
-        let db = null;
-        let taskList = document.getElementById('taskList');
-        let taskCount = document.getElementById('taskCount');
-        let connectionStatus = document.getElementById('connectionStatus');
-        let isConnecting = false;
+    <!-- Firebase SDKs - Versão modular (v9+) -->
+    <script type="module">
+        // Importações do Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            getDocs, 
+            onSnapshot, 
+            deleteDoc, 
+            doc, 
+            updateDoc,
+            serverTimestamp,
+            query,
+            orderBy
+        } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+        
+        // Configuração do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBMlMkubD980K5ynN5Ud3XEYNWK3Q8RklU",
+            authDomain: "db-test-7e79c.firebaseapp.com",
+            projectId: "db-test-7e79c",
+            storageBucket: "db-test-7e79c.firebasestorage.app",
+            messagingSenderId: "472155269675",
+            appId: "1:472155269675:web:99df5c6d830927e612586e",
+            measurementId: "G-Z21SZ5XF50"
+        };
 
         // Elementos do DOM
         const taskInput = document.getElementById('taskInput');
         const addTaskButton = document.getElementById('addTask');
-        const apiKeyInput = document.getElementById('apiKey');
-        const connectBtn = document.getElementById('connectBtn');
+        const taskList = document.getElementById('taskList');
+        const taskCount = document.getElementById('taskCount');
+        const connectionStatus = document.querySelector('.connection-status');
+        const statusIndicator = document.querySelector('.status-indicator');
+        const connectionText = document.getElementById('connectionText');
+        const userCount = document.getElementById('userCount');
 
-        // Event listeners
-        addTaskButton.addEventListener('click', addTask);
-        taskInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                addTask();
-            }
-        });
-        connectBtn.addEventListener('click', connectToFirebase);
+        let db;
+        let isConnected = false;
+        let unsubscribe = null;
+        let currentUser = null;
 
-        // Função para conectar ao Firebase
-        function connectToFirebase() {
-            if (isConnecting) return;
+        // Inicializar Firebase
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            isConnected = true;
             
-            const apiKey = apiKeyInput.value.trim();
-            if (!apiKey) {
-                alert('Por favor, digite uma chave de API válida!');
-                return;
-            }
+            // Atualizar status de conexão
+            updateConnectionStatus(true);
+            
+            console.log('Firebase inicializado com sucesso!');
+            
+            // Carregar tarefas existentes e configurar escuta em tempo real
+            setupRealtimeListener();
+            
+        } catch (error) {
+            console.error('Erro ao inicializar Firebase:', error);
+            updateConnectionStatus(false);
+            taskList.innerHTML = `<li class="loading">Erro ao conectar: ${error.message}</li>`;
+        }
 
-            isConnecting = true;
-            connectBtn.disabled = true;
-            connectionStatus.textContent = '🔄 Conectando...';
-            connectionStatus.className = 'status';
-
-            try {
-                // Configuração do Firebase
-                const firebaseConfig = {
-                    apiKey: apiKey,
-                    authDomain: "db-test-7e79c.firebaseapp.com",
-                    projectId: "db-test-7e79c",
-                    storageBucket: "db-test-7e79c.firebasestorage.app",
-                    messagingSenderId: "472155269675",
-                    appId: "1:472155269675:web:99df5c6d830927e612586e",
-                    measurementId: "G-Z21SZ5XF50"
-                };
-
-                // Inicializar Firebase
-                if (!firebase.apps.length) {
-                    firebase.initializeApp(firebaseConfig);
-                }
-                
-                // Inicializar Analytics
-                if (firebaseConfig.measurementId) {
-                    firebase.analytics();
-                }
-
-                // Conectar ao Firestore
-                db = firebase.firestore();
-                
-                // Testar conexão
-                db.collection('tasks').limit(1).get()
-                    .then(() => {
-                        // Atualizar status de conexão
-                        connectionStatus.textContent = '✅ Conectado ao Firebase';
-                        connectionStatus.className = 'status connected';
-                        
-                        // Carregar tarefas
-                        loadTasks();
-                        
-                        // Armazenar chave no localStorage para próximo acesso
-                        localStorage.setItem('firebaseApiKey', apiKey);
-                        
-                        console.log('Firebase conectado com sucesso!');
-                    })
-                    .catch(error => {
-                        throw error;
-                    });
-
-            } catch (error) {
-                console.error('Erro ao conectar ao Firebase:', error);
-                connectionStatus.textContent = `❌ Erro: ${error.message || 'Falha na conexão'}`;
-                connectionStatus.className = 'status error disconnected';
-                db = null;
-                taskList.innerHTML = '<li class="loading">Falha na conexão. Verifique sua chave de API.</li>';
-            } finally {
-                isConnecting = false;
-                connectBtn.disabled = false;
+        // Atualizar status de conexão visualmente
+        function updateConnectionStatus(connected) {
+            isConnected = connected;
+            if (connected) {
+                statusIndicator.classList.add('connected');
+                connectionText.textContent = 'Conectado ao Firebase - Sincronização em tempo real';
+                connectionStatus.classList.remove('disconnected');
+                connectionStatus.classList.add('connected');
+            } else {
+                statusIndicator.classList.remove('connected');
+                connectionText.textContent = 'Não conectado ao Firebase';
+                connectionStatus.classList.remove('connected');
+                connectionStatus.classList.add('disconnected');
             }
         }
 
-        // Função para carregar tarefas do Firestore
-        function loadTasks() {
+        // Configurar escuta em tempo real para tarefas
+        function setupRealtimeListener() {
             if (!db) return;
             
-            // Limpar a lista atual
-            taskList.innerHTML = '<li class="loading">Carregando tarefas...</li>';
+            const tasksCollection = collection(db, 'tasks');
+            const tasksQuery = query(tasksCollection, orderBy('timestamp', 'desc'));
             
-            // Escutar mudanças em tempo real
-            db.collection('tasks')
-                .orderBy('timestamp', 'desc')
-                .onSnapshot(snapshot => {
-                    if (snapshot.empty) {
-                        taskList.innerHTML = '<li class="loading">Nenhuma tarefa encontrada. Adicione a primeira!</li>';
-                        taskCount.textContent = '0 tarefas';
-                        return;
-                    }
-
-                    taskList.innerHTML = '';
-                    let count = 0;
-                    
-                    snapshot.forEach(doc => {
-                        const task = doc.data();
-                        const taskId = doc.id;
-                        addTaskToDOM(task, taskId);
-                        count++;
-                    });
-                    
-                    taskCount.textContent = `${count} tarefa${count !== 1 ? 's' : ''}`;
-                }, error => {
-                    console.error('Erro ao carregar tarefas:', error);
-                    taskList.innerHTML = `<li class="loading">Erro ao carregar tarefas: ${error.message}</li>`;
-                    connectionStatus.textContent = '❌ Erro ao carregar dados';
-                    connectionStatus.className = 'status error disconnected';
-                });
-        }
-
-        // Função para adicionar uma nova tarefa
-        function addTask() {
-            const taskText = taskInput.value.trim();
-            
-            if (!taskText) {
-                taskInput.focus();
-                return;
-            }
-            
-            if (!db) {
-                alert('Conecte-se ao Firebase primeiro!');
-                return;
-            }
-            
-            // Adicionar tarefa ao Firestore
-            db.collection('tasks').add({
-                text: taskText,
-                completed: false,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                createdAt: new Date().toISOString()
-            })
-            .then(() => {
-                // Limpar o input após adicionar
-                taskInput.value = '';
-                taskInput.focus();
-            })
-            .catch(error => {
-                console.error('Erro ao adicionar tarefa:', error);
-                alert(`Erro ao adicionar tarefa: ${error.message}`);
+            // Configurar escuta em tempo real
+            unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
+                console.log('Dados atualizados em tempo real:', snapshot.size);
+                renderTasks(snapshot);
+            }, (error) => {
+                console.error('Erro na escuta em tempo real:', error);
+                updateConnectionStatus(false);
+                taskList.innerHTML = `<li class="loading">Erro ao carregar tarefas: ${error.message}</li>`;
             });
         }
 
-        // Função para adicionar tarefa ao DOM
+        // Renderizar tarefas na interface
+        function renderTasks(snapshot) {
+            if (snapshot.empty) {
+                taskList.innerHTML = '<li class="no-tasks">Nenhuma tarefa encontrada. Adicione a primeira!</li>';
+                taskCount.textContent = '0 tarefas';
+                return;
+            }
+            
+            taskList.innerHTML = '';
+            let count = 0;
+            
+            snapshot.forEach((doc) => {
+                const task = doc.data();
+                const taskId = doc.id;
+                addTaskToDOM(task, taskId);
+                count++;
+            });
+            
+            taskCount.textContent = `${count} tarefa${count !== 1 ? 's' : ''}`;
+        }
+
+        // Adicionar tarefa ao DOM
         function addTaskToDOM(task, taskId) {
             const li = document.createElement('li');
             
             // Checkbox para marcar como concluída
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
-            checkbox.checked = task.completed;
+            checkbox.checked = task.completed || false;
             checkbox.addEventListener('change', () => toggleTaskStatus(taskId, checkbox.checked));
             
             // Texto da tarefa
             const taskText = document.createElement('span');
-            taskText.textContent = task.text;
+            taskText.textContent = task.text || '';
             taskText.className = task.completed ? 'task-text completed' : 'task-text';
             
             // Botão de deletar
@@ -443,64 +385,124 @@
             taskList.prepend(li);
         }
 
-        // Função para alternar status da tarefa
-        function toggleTaskStatus(taskId, completed) {
-            if (!db) return;
+        // Adicionar nova tarefa
+        async function addTask() {
+            const taskText = taskInput.value.trim();
             
-            db.collection('tasks').doc(taskId).update({
-                completed: completed
-            })
-            .catch(error => {
+            if (!taskText) {
+                taskInput.focus();
+                return;
+            }
+            
+            if (!isConnected || !db) {
+                alert('Conecte-se ao Firebase primeiro!');
+                return;
+            }
+            
+            try {
+                const tasksCollection = collection(db, 'tasks');
+                
+                // Adicionar tarefa com timestamp do servidor
+                await addDoc(tasksCollection, {
+                    text: taskText,
+                    completed: false,
+                    timestamp: serverTimestamp(),
+                    createdAt: new Date().toISOString(),
+                    createdBy: currentUser || 'Usuário anônimo'
+                });
+                
+                // Limpar o input
+                taskInput.value = '';
+                taskInput.focus();
+                
+                console.log('Tarefa adicionada com sucesso!');
+                
+            } catch (error) {
+                console.error('Erro ao adicionar tarefa:', error);
+                alert(`Erro ao adicionar tarefa: ${error.message}`);
+            }
+        }
+
+        // Alternar status da tarefa (concluída/não concluída)
+        async function toggleTaskStatus(taskId, completed) {
+            if (!isConnected || !db) return;
+            
+            try {
+                const taskDoc = doc(db, 'tasks', taskId);
+                await updateDoc(taskDoc, {
+                    completed: completed,
+                    updatedAt: serverTimestamp()
+                });
+                
+                console.log(`Tarefa ${taskId} atualizada para ${completed ? 'concluída' : 'não concluída'}`);
+                
+            } catch (error) {
                 console.error('Erro ao atualizar tarefa:', error);
                 alert(`Erro ao atualizar tarefa: ${error.message}`);
-            });
-        }
-
-        // Função para deletar tarefa
-        function deleteTask(taskId) {
-            if (!db) return;
-            
-            if (confirm('Tem certeza que deseja excluir esta tarefa?')) {
-                db.collection('tasks').doc(taskId).delete()
-                .catch(error => {
-                    console.error('Erro ao deletar tarefa:', error);
-                    alert(`Erro ao deletar tarefa: ${error.message}`);
-                });
             }
         }
 
-        // Função para carregar chave salva do localStorage
-        function loadSavedApiKey() {
-            const savedKey = localStorage.getItem('firebaseApiKey');
-            if (savedKey) {
-                apiKeyInput.value = savedKey;
-                // Tentar conectar automaticamente
-                setTimeout(connectToFirebase, 1000);
+        // Deletar tarefa
+        async function deleteTask(taskId) {
+            if (!isConnected || !db) return;
+            
+            if (!confirm('Tem certeza que deseja excluir esta tarefa?')) {
+                return;
+            }
+            
+            try {
+                const taskDoc = doc(db, 'tasks', taskId);
+                await deleteDoc(taskDoc);
+                
+                console.log(`Tarefa ${taskId} excluída com sucesso`);
+                
+            } catch (error) {
+                console.error('Erro ao deletar tarefa:', error);
+                alert(`Erro ao deletar tarefa: ${error.message}`);
             }
         }
 
-        // Inicialização
-        document.addEventListener('DOMContentLoaded', () => {
-            loadSavedApiKey();
-            
-            // Tratar eventos de conexão de rede
-            window.addEventListener('online', () => {
-                if (db && apiKeyInput.value.trim()) {
-                    connectionStatus.textContent = '✅ Online';
-                    connectionStatus.className = 'status connected';
-                }
-            });
-
-            window.addEventListener('offline', () => {
-                connectionStatus.textContent = '⚠️ Offline';
-                connectionStatus.className = 'status disconnected';
-            });
+        // Event listeners
+        addTaskButton.addEventListener('click', addTask);
+        
+        taskInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTask();
+            }
         });
 
-        // Verificar conexão inicial
-        if (apiKeyInput.value.trim()) {
-            setTimeout(connectToFirebase, 500);
-        }
+        // Gerenciar desconexão de rede
+        window.addEventListener('online', () => {
+            console.log('Conexão de rede restaurada');
+            if (firebaseConfig && !isConnected) {
+                location.reload(); // Recarregar para reconectar
+            }
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('Sem conexão de rede');
+            updateConnectionStatus(false);
+        });
+
+        // Cleanup ao fechar a página
+        window.addEventListener('beforeunload', () => {
+            if (unsubscribe) {
+                unsubscribe();
+                console.log('Escuta em tempo real removida');
+            }
+        });
+
+        // Inicializar com um ID de usuário único para tracking
+        currentUser = 'user_' + Math.random().toString(36).substr(2, 9);
+        console.log('ID do usuário atual:', currentUser);
+
+        // Simular contador de usuários online (para demonstração)
+        setInterval(() => {
+            if (isConnected) {
+                const randomUsers = Math.floor(Math.random() * 3) + 1;
+                userCount.textContent = `${randomUsers} usuário${randomUsers !== 1 ? 's' : ''} online`;
+            }
+        }, 5000);
     </script>
 </body>
 </html>
