@@ -565,38 +565,6 @@
                 setDragOverTask(null);
             }, []);
 
-            const moveTaskUp = useCallback((taskId) => {
-                const taskIndex = tasks.findIndex(t => t.id === taskId);
-                if (taskIndex <= 0) return;
-
-                const newTasks = [...tasks];
-                [newTasks[taskIndex - 1], newTasks[taskIndex]] = [newTasks[taskIndex], newTasks[taskIndex - 1]];
-
-                setTasks(newTasks);
-                setIsLoading(true);
-                const success = SharedTasksAPI.reorderTasks(newTasks);
-                if (success) {
-                    setLastSync(new Date());
-                }
-                setIsLoading(false);
-            }, [tasks]);
-
-            const moveTaskDown = useCallback((taskId) => {
-                const taskIndex = tasks.findIndex(t => t.id === taskId);
-                if (taskIndex === -1 || taskIndex >= tasks.length - 1) return;
-
-                const newTasks = [...tasks];
-                [newTasks[taskIndex], newTasks[taskIndex + 1]] = [newTasks[taskIndex + 1], newTasks[taskIndex]];
-
-                setTasks(newTasks);
-                setIsLoading(true);
-                const success = SharedTasksAPI.reorderTasks(newTasks);
-                if (success) {
-                    setLastSync(new Date());
-                }
-                setIsLoading(false);
-            }, [tasks]);
-
             const getTaskPriority = (task) => {
                 if (task.done) return "none";
                 if (!task.dueDate) return "none";
@@ -712,45 +680,6 @@
             const resetPhrases = () => {
                 if (!confirm("Isso restaurará as frases padrão. Tem certeza?")) return;
                 setPhrases(defaultPhrases);
-            };
-
-            const exportPhrases = () => {
-                const dataStr = JSON.stringify(phrases, null, 2);
-                const dataBlob = new Blob([dataStr], { type: 'application/json' });
-                
-                const url = URL.createObjectURL(dataBlob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = 'frases_elogios.json';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-            };
-
-            const importPhrases = (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
-                
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const data = JSON.parse(e.target.result);
-                        
-                        if (data.completionTexts && Array.isArray(data.completionTexts)) {
-                            setPhrases(data);
-                            alert("Frases importadas com sucesso!");
-                        } else {
-                            alert("Arquivo inválido. Deve conter um array 'completionTexts'.");
-                        }
-                    } catch (error) {
-                        alert("Erro ao importar arquivo. Verifique se é um JSON válido.");
-                    }
-                };
-                reader.readAsText(file);
-                
-                // Reset do input para permitir importar o mesmo arquivo novamente
-                event.target.value = '';
             };
 
             const visibleTasks = tasks.filter((t) => {
@@ -924,7 +853,6 @@
 
                             <div className="p-5 border-b border-gray-700">
                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                                    
                                     <div className="filters-container">
                                         {[
                                             { label: "Todas", value: "all", icon: "fas fa-list" },
@@ -1053,35 +981,15 @@
                                                 >
                                                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                                         <div className="flex items-start gap-3 flex-1">
-                                                            <div className="flex flex-col gap-1">
-                                                                <div className="mt-0.5">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={t.done}
-                                                                        onChange={() => toggleDone(t.id)}
-                                                                        disabled={isLoading}
-                                                                        className="w-4.5 h-4.5 rounded border-gray-600 bg-gray-800 text-purple-600 focus:ring-purple-600 focus:ring-offset-0 cursor-pointer transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                        aria-label={`Marcar ${t.title}`}
-                                                                    />
-                                                                </div>
-                                                                <div className="flex flex-col gap-0.5">
-                                                                    <button
-                                                                        onClick={() => moveTaskUp(t.id)}
-                                                                        disabled={isLoading || index === 0}
-                                                                        className="drag-handle text-gray-500 hover:text-purple-400 disabled:opacity-30 disabled:cursor-not-allowed"
-                                                                        title="Mover para cima"
-                                                                    >
-                                                                        <i className="fas fa-chevron-up text-xs"></i>
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => moveTaskDown(t.id)}
-                                                                        disabled={isLoading || index === visibleTasks.length - 1}
-                                                                        className="drag-handle text-gray-500 hover:text-purple-400 disabled:opacity-30 disabled:cursor-not-allowed"
-                                                                        title="Mover para baixo"
-                                                                    >
-                                                                        <i className="fas fa-chevron-down text-xs"></i>
-                                                                    </button>
-                                                                </div>
+                                                            <div className="mt-0.5">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={t.done}
+                                                                    onChange={() => toggleDone(t.id)}
+                                                                    disabled={isLoading}
+                                                                    className="w-4.5 h-4.5 rounded border-gray-600 bg-gray-800 text-purple-600 focus:ring-purple-600 focus:ring-offset-0 cursor-pointer transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                    aria-label={`Marcar ${t.title}`}
+                                                                />
                                                             </div>
                                                             
                                                             <div className="flex-1 min-w-0">
@@ -1238,24 +1146,6 @@
                                             >
                                                 Adicionar
                                             </button>
-                                        </div>
-                                        
-                                        <div className="flex gap-2 mb-3">
-                                            <button
-                                                onClick={exportPhrases}
-                                                className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm"
-                                            >
-                                                Exportar Frases
-                                            </button>
-                                            <label className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm text-center cursor-pointer">
-                                                Importar Frases
-                                                <input
-                                                    type="file"
-                                                    accept=".json"
-                                                    onChange={importPhrases}
-                                                    className="hidden"
-                                                />
-                                            </label>
                                         </div>
                                         
                                         <div className="max-h-60 overflow-y-auto">
