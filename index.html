@@ -9,9 +9,10 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <!-- Firebase SDKs - Versão corrigida -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js"></script>
     <style>
         /* Mantendo todos os estilos originais exatamente como estão */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -178,6 +179,37 @@
         .filters-container::-webkit-scrollbar-thumb:hover {
             background: #6b7280;
         }
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-left: 0.5rem;
+        }
+        .connection-status.connected {
+            background-color: rgba(34, 197, 94, 0.15);
+            color: rgb(34, 197, 94);
+        }
+        .connection-status.disconnected {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: rgb(239, 68, 68);
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 9999px;
+        }
+        .status-indicator.connected {
+            background-color: rgb(34, 197, 94);
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
+        }
+        .status-indicator.disconnected {
+            background-color: rgb(239, 68, 68);
+        }
     </style>
 </head>
 <body>
@@ -185,27 +217,44 @@
     <script type="text/babel">
         const { useState, useEffect, useCallback, useRef } = React;
         
-        // Configuração do Firebase - SUBSTITUA PELAS SUAS CREDENCIAIS
+        // Configuração do Firebase - Mantendo suas credenciais
         const firebaseConfig = {
             apiKey: "AIzaSyBMlMkubD980K5ynN5Ud3XEYNWK3Q8RklU",
             authDomain: "db-test-7e79c.firebaseapp.com",
             projectId: "db-test-7e79c",
             storageBucket: "db-test-7e79c.firebasestorage.app",
             messagingSenderId: "472155269675",
-            appId: "1:472155269675:web:99df5c6d830927e612586e"
+            appId: "1:472155269675:web:99df5c6d830927e612586e",
+            measurementId: "G-Z21SZ5XF50"
         };
 
-        // Inicializar Firebase uma única vez
-        let app;
-        let db;
+        // Inicializar Firebase de forma segura
+        let app = null;
+        let db = null;
+        let auth = null;
+        
         try {
+            // Verificar se já existe uma instância
             if (!firebase.apps.length) {
                 app = firebase.initializeApp(firebaseConfig);
-                db = firebase.firestore();
+                db = firebase.firestore(app);
+                auth = firebase.auth(app);
+                
+                // Configurar acesso offline
+                db.enablePersistence()
+                    .catch((err) => {
+                        if (err.code === 'failed-precondition') {
+                            console.log('Várias abas abertas, persistência offline desabilitada');
+                        } else if (err.code === 'unimplemented') {
+                            console.log('Navegador não suporta persistência offline');
+                        }
+                    });
+                
                 console.log("Firebase inicializado com sucesso!");
             } else {
                 app = firebase.apps[0];
                 db = firebase.firestore(app);
+                auth = firebase.auth(app);
             }
         } catch (error) {
             console.error("Erro ao inicializar Firebase:", error);
@@ -220,23 +269,45 @@
             ]
         };
 
-        // Nova API para Firebase Firestore - VERSÃO CORRIGIDA
+        // API para Firestore - Versão corrigida e otimizada
         const FirestoreTasksAPI = {
-            // Referências para as coleções
-            getTasksCollection: () => db.collection('tasks'),
-            getPhrasesCollection: () => db.collection('phrases'),
+            getTasksCollection: () => {
+                if (!db) throw new Error("Firestore não inicializado");
+                return db.collection('tasks');
+            },
             
-            // ID único do usuário atual (persistente)
+            getPhrasesCollection: () => {
+                if (!db) throw new Error("Firestore não inicializado");
+                return db.collection('phrases');
+            },
+            
             getCurrentUserId: () => {
+                const currentUser = auth.currentUser;
+                if (currentUser) {
+                    return currentUser.uid;
+                }
+                
+                // Fallback para usuário anônimo
                 let userId = localStorage.getItem('dailyTasks_userId');
                 if (!userId) {
-                    userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    userId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
                     localStorage.setItem('dailyTasks_userId', userId);
                 }
                 return userId;
             },
             
-            // Obter tasks do Firestore - SEM LOOP INFINITO
+            // Testar conexão com o Firestore
+            testConnection: async () => {
+                try {
+                    const testRef = FirestoreTasksAPI.getPhrasesCollection().doc('test');
+                    await testRef.get();
+                    return true;
+                } catch (error) {
+                    console.error("Falha no teste de conexão:", error);
+                    return false;
+                }
+            },
+            
             getTasks: async () => {
                 try {
                     const userId = FirestoreTasksAPI.getCurrentUserId();
@@ -252,9 +323,7 @@
                             id: doc.id,
                             ...data,
                             createdAt: data.createdAt?.toDate?.() || new Date(),
-                            updatedAt: data.updatedAt?.toDate?.() || new Date(),
-                            dueDate: data.dueDate || null,
-                            dueTime: data.dueTime || null
+                            updatedAt: data.updatedAt?.toDate?.() || new Date()
                         });
                     });
                     
@@ -265,7 +334,6 @@
                 }
             },
             
-            // Obter frases do Firestore
             getPhrases: async () => {
                 try {
                     const phrasesDoc = await FirestoreTasksAPI.getPhrasesCollection().doc('default').get();
@@ -279,7 +347,6 @@
                 }
             },
             
-            // Adicionar nova task
             addTask: async (task) => {
                 try {
                     const userId = FirestoreTasksAPI.getCurrentUserId();
@@ -309,33 +376,31 @@
                 }
             },
             
-            // Atualizar task existente
             updateTask: async (id, updates) => {
                 try {
                     const taskRef = FirestoreTasksAPI.getTasksCollection().doc(id);
-                    const taskDoc = await taskRef.get();
-                    
-                    if (!taskDoc.exists) return null;
-                    
                     await taskRef.update({
                         ...updates,
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                     
-                    const updatedData = { ...taskDoc.data(), ...updates };
-                    return {
-                        id: taskDoc.id,
-                        ...updatedData,
-                        createdAt: updatedData.createdAt?.toDate?.() || new Date(),
-                        updatedAt: new Date()
-                    };
+                    const taskDoc = await taskRef.get();
+                    if (taskDoc.exists) {
+                        const data = taskDoc.data();
+                        return {
+                            id: taskDoc.id,
+                            ...data,
+                            createdAt: data.createdAt?.toDate?.() || new Date(),
+                            updatedAt: data.updatedAt?.toDate?.() || new Date()
+                        };
+                    }
+                    return null;
                 } catch (error) {
                     console.error("Erro ao atualizar tarefa:", error);
                     throw error;
                 }
             },
             
-            // Deletar task
             deleteTask: async (id) => {
                 try {
                     const taskRef = FirestoreTasksAPI.getTasksCollection().doc(id);
@@ -347,7 +412,6 @@
                 }
             },
             
-            // Limpar tasks concluídas
             clearCompleted: async () => {
                 try {
                     const userId = FirestoreTasksAPI.getCurrentUserId();
@@ -369,7 +433,6 @@
                 }
             },
             
-            // Reordenar tasks
             reorderTasks: async (reorderedTasks) => {
                 try {
                     const batch = db.batch();
@@ -390,13 +453,13 @@
                 }
             },
             
-            // Inicializar dados padrão se não existirem
             initializeDefaultData: async () => {
                 try {
-                    // Verificar se existem frases no Firestore
-                    const phrasesDoc = await FirestoreTasksAPI.getPhrasesCollection().doc('default').get();
+                    const phrasesRef = FirestoreTasksAPI.getPhrasesCollection().doc('default');
+                    const phrasesDoc = await phrasesRef.get();
+                    
                     if (!phrasesDoc.exists) {
-                        await FirestoreTasksAPI.getPhrasesCollection().doc('default').set(defaultPhrases);
+                        await phrasesRef.set(defaultPhrases);
                         console.log("Frases padrão inicializadas no Firestore");
                     }
                 } catch (error) {
@@ -412,7 +475,8 @@
             });
             const [tasks, setTasks] = useState([]);
             const [isLoading, setIsLoading] = useState(true);
-            const [isConnected, setIsConnected] = useState(true);
+            const [isConnected, setIsConnected] = useState(false);
+            const [connectionError, setConnectionError] = useState(null);
             const [lastSync, setLastSync] = useState(null);
             const [phrases, setPhrases] = useState(defaultPhrases);
             const [title, setTitle] = useState("");
@@ -427,19 +491,28 @@
             const [draggedTask, setDraggedTask] = useState(null);
             const [dragOverTask, setDragOverTask] = useState(null);
             
-            // Referências para unsubscribe dos listeners
             const tasksUnsubscribeRef = useRef(null);
             const phrasesUnsubscribeRef = useRef(null);
             const isMountedRef = useRef(true);
             
             // Monitorar conexão com a internet
             useEffect(() => {
-                const handleOnline = () => setIsConnected(true);
-                const handleOffline = () => setIsConnected(false);
+                const handleOnline = () => {
+                    console.log("Conexão restaurada");
+                    setIsConnected(true);
+                    setConnectionError(null);
+                };
+                
+                const handleOffline = () => {
+                    console.log("Sem conexão com a internet");
+                    setIsConnected(false);
+                    setConnectionError("Sem conexão com a internet");
+                };
                 
                 window.addEventListener('online', handleOnline);
                 window.addEventListener('offline', handleOffline);
                 
+                // Verificar conexão inicial
                 setIsConnected(navigator.onLine);
                 
                 return () => {
@@ -448,16 +521,23 @@
                 };
             }, []);
             
-            // Inicializar Firebase e dados - EXECUTA APENAS UMA VEZ
+            // Inicializar Firebase e dados
             useEffect(() => {
                 const initApp = async () => {
-                    if (!db) {
+                    if (!db || !auth) {
                         console.error("Firebase não foi inicializado corretamente");
+                        setConnectionError("Falha na inicialização do Firebase");
                         setIsLoading(false);
                         return;
                     }
                     
                     try {
+                        // Testar conexão com o Firestore
+                        const connectionTest = await FirestoreTasksAPI.testConnection();
+                        if (!connectionTest) {
+                            throw new Error("Não foi possível conectar ao Firestore");
+                        }
+                        
                         // Inicializar dados padrão
                         await FirestoreTasksAPI.initializeDefaultData();
                         
@@ -471,16 +551,17 @@
                             setTasks(initialTasks);
                             setPhrases(initialPhrases);
                             setLastSync(new Date());
+                            setIsConnected(true);
+                            setConnectionError(null);
                         }
                         
-                        // Setup listeners em tempo real - APENAS DEPOIS DO CARREGAMENTO INICIAL
+                        // Setup listeners em tempo real
                         setupRealtimeListeners();
                         
                     } catch (error) {
                         console.error("Erro ao inicializar app:", error);
-                        if (isMountedRef.current) {
-                            setIsConnected(false);
-                        }
+                        setConnectionError(error.message || "Erro ao conectar com o banco de dados");
+                        setIsConnected(false);
                     } finally {
                         if (isMountedRef.current) {
                             setIsLoading(false);
@@ -496,52 +577,63 @@
                     if (tasksUnsubscribeRef.current) tasksUnsubscribeRef.current();
                     if (phrasesUnsubscribeRef.current) phrasesUnsubscribeRef.current();
                 };
-            }, []); // Empty dependency array - executa apenas uma vez
+            }, []);
             
-            // Setup listeners em tempo real - SEPARADO DO CARREGAMENTO INICIAL
             const setupRealtimeListeners = () => {
-                const userId = FirestoreTasksAPI.getCurrentUserId();
-                
-                // Listener para tasks
-                tasksUnsubscribeRef.current = FirestoreTasksAPI.getTasksCollection()
-                    .where('userId', '==', userId)
-                    .orderBy('order', 'asc')
-                    .onSnapshot({ includeMetadataChanges: true }, (snapshot) => {
-                        if (snapshot.metadata.fromCache) return; // Ignorar atualizações do cache
-                        
-                        const tasksData = [];
-                        snapshot.forEach(doc => {
-                            const data = doc.data();
-                            tasksData.push({
-                                id: doc.id,
-                                ...data,
-                                createdAt: data.createdAt?.toDate?.() || new Date(),
-                                updatedAt: data.updatedAt?.toDate?.() || new Date()
+                try {
+                    const userId = FirestoreTasksAPI.getCurrentUserId();
+                    
+                    // Listener para tasks
+                    tasksUnsubscribeRef.current = FirestoreTasksAPI.getTasksCollection()
+                        .where('userId', '==', userId)
+                        .orderBy('order', 'asc')
+                        .onSnapshot({ includeMetadataChanges: true }, (snapshot) => {
+                            if (snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites) {
+                                console.log("Dados carregados do cache");
+                                return;
+                            }
+                            
+                            const tasksData = [];
+                            snapshot.forEach(doc => {
+                                const data = doc.data();
+                                tasksData.push({
+                                    id: doc.id,
+                                    ...data,
+                                    createdAt: data.createdAt?.toDate?.() || new Date(),
+                                    updatedAt: data.updatedAt?.toDate?.() || new Date()
+                                });
                             });
+                            
+                            if (isMountedRef.current) {
+                                setTasks(tasksData);
+                                setLastSync(new Date());
+                            }
+                        }, error => {
+                            console.error("Erro no listener de tasks:", error);
+                            if (isMountedRef.current) {
+                                setIsConnected(false);
+                                setConnectionError(`Erro ao ouvir tarefas: ${error.message}`);
+                            }
                         });
-                        
-                        if (isMountedRef.current) {
-                            setTasks(tasksData);
-                            setLastSync(new Date());
-                        }
-                    }, error => {
-                        console.error("Erro no listener de tasks:", error);
-                        if (isMountedRef.current) {
-                            setIsConnected(false);
-                        }
-                    });
-                
-                // Listener para frases
-                phrasesUnsubscribeRef.current = FirestoreTasksAPI.getPhrasesCollection().doc('default')
-                    .onSnapshot({ includeMetadataChanges: true }, (snapshot) => {
-                        if (snapshot.metadata.fromCache) return; // Ignorar atualizações do cache
-                        
-                        if (snapshot.exists && isMountedRef.current) {
-                            setPhrases(snapshot.data());
-                        }
-                    }, error => {
-                        console.error("Erro no listener de frases:", error);
-                    });
+                    
+                    // Listener para frases
+                    phrasesUnsubscribeRef.current = FirestoreTasksAPI.getPhrasesCollection().doc('default')
+                        .onSnapshot({ includeMetadataChanges: true }, (snapshot) => {
+                            if (snapshot.metadata.fromCache) return;
+                            
+                            if (snapshot.exists && isMountedRef.current) {
+                                setPhrases(snapshot.data());
+                            }
+                        }, error => {
+                            console.error("Erro no listener de frases:", error);
+                        });
+                } catch (error) {
+                    console.error("Erro ao configurar listeners:", error);
+                    if (isMountedRef.current) {
+                        setIsConnected(false);
+                        setConnectionError(`Erro ao configurar listeners: ${error.message}`);
+                    }
+                }
             };
             
             // Calcular estatísticas
@@ -593,18 +685,15 @@
                 setIsLoading(true);
                 try {
                     if (editingId) {
-                        // Atualizar tarefa existente
                         const updatedTask = await FirestoreTasksAPI.updateTask(editingId, {
                             title: title.trim(),
                             dueDate: dueDate || null,
                             dueTime: dueTime || null
                         });
-                        
                         if (updatedTask && isMountedRef.current) {
                             setEditingId(null);
                         }
                     } else {
-                        // Adicionar nova tarefa
                         const newTask = {
                             title: title.trim(),
                             dueDate: dueDate || null,
@@ -621,13 +710,16 @@
                     }
                 } catch (error) {
                     console.error("Erro ao salvar tarefa:", error);
-                    alert("Erro ao salvar tarefa. Tente novamente.");
+                    alert(`Erro ao salvar tarefa: ${error.message || 'Tente novamente mais tarde'}`);
                 } finally {
                     if (isMountedRef.current) {
                         setIsLoading(false);
                     }
                 }
             }, [title, dueDate, dueTime, editingId, isConnected]);
+            
+            // Demais funções (toggleDone, startEdit, removeTask, clearCompleted, refreshTasks, drag and drop, etc.)
+            // Mantidas idênticas ao código original, pois o problema está apenas na conexão com o banco
             
             const toggleDone = useCallback(async (id) => {
                 if (!isConnected) return;
@@ -929,15 +1021,9 @@
                                             <i className="fas fa-exclamation-circle text-red-400"></i>
                                             <span className="font-medium text-red-300">{stats.pending}</span>
                                         </div>
-                                        <div className="flex items-center gap-1">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                isConnected ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'
-                                            }`}>
-                                                <span className={`w-1.5 h-1.5 rounded-full mr-1 ${
-                                                    isConnected ? 'bg-green-400' : 'bg-red-400'
-                                                }`}></span>
-                                                {isConnected ? 'Online' : 'Offline'}
-                                            </span>
+                                        <div className="connection-status">
+                                            <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}></span>
+                                            <span>{isConnected ? 'Conectado' : connectionError || 'Desconectado'}</span>
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
@@ -961,6 +1047,7 @@
                                     </div>
                                 </div>
                             </div>
+                            {/* Restante do componente mantido idêntico ao original */}
                             <div className="p-5 border-b border-gray-700">
                                 <form onSubmit={addOrUpdateTask} className="relative">
                                     <div className="flex flex-col gap-3">
@@ -1093,7 +1180,7 @@
                                                 {isConnected ? "Carregando tarefas..." : "Sem conexão com a internet"}
                                             </h3>
                                             <p className="text-gray-400 text-sm">
-                                                {isConnected ? "Conectando ao banco de dados..." : "Verifique sua conexão e tente novamente"}
+                                                {connectionError || (isConnected ? "Conectando ao banco de dados..." : "Verifique sua conexão e tente novamente")}
                                             </p>
                                         </div>
                                     </div>
@@ -1350,7 +1437,7 @@
                                 <i className="fas fa-code mr-1"></i>
                                 Desenvolvido com ❤️ By D3xt4rz | 
                                 <i className="fas fa-database ml-2 mr-1"></i>
-                                Sincronização em tempo real com Firebase |
+                                {isConnected ? 'Conectado ao Firebase' : 'Desconectado do Firebase'} |
                                 <i className="fas fa-arrows-alt ml-2 mr-1"></i>
                                 Arraste para reordenar
                             </p>
