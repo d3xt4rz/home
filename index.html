@@ -9,13 +9,9 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Firebase SDKs - Versão corrigida -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js"></script>
     <style>
-        /* Mantendo todos os estilos originais exatamente como estão */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
         body {
             background: #000 url('https://4kwallpapers.com/images/walls/thumbs_3t/14811.jpg') no-repeat center center fixed;
             background-size: cover;
@@ -27,6 +23,7 @@
             -webkit-text-size-adjust: 100%;
             position: relative;
         }
+
         body::before {
             content: '';
             position: fixed;
@@ -37,61 +34,75 @@
             background: rgba(0, 0, 0, 0.7);
             z-index: -1;
         }
+
         @media (max-width: 640px) {
             body {
                 padding: 0.5rem;
             }
         }
+
         .task-item {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             will-change: transform, box-shadow;
             cursor: grab;
         }
+
         .task-item:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
+
         .task-item:active {
             cursor: grabbing;
         }
+
         .task-item.dragging {
             opacity: 0.6;
             transform: rotate(5deg) scale(1.02);
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
         }
+
         .task-item.drag-over {
             border: 2px dashed #9333ea;
             background: rgba(147, 51, 234, 0.1);
         }
+
         .task-item.completed {
             animation: taskComplete 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
         }
+
         @keyframes taskComplete {
             0% { opacity: 1; transform: translateX(0); }
             50% { opacity: 0.7; transform: translateX(-10px); }
             100% { opacity: 0.5; transform: translateX(0); }
         }
+
         .glass-card {
             background: rgba(17, 24, 39, 0.85);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(55, 65, 81, 0.5);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
+
         @media (max-width: 640px) {
             .glass-card {
                 border-radius: 0.75rem !important;
             }
         }
+
         .btn-primary {
             background-color: #9333ea;
             transition: all 0.3s ease;
         }
+
         .btn-primary:hover {
             background-color: #7e22ce;
         }
+
         .btn-glow::after {
             display: none;
         }
+
         @keyframes fadeInUp {
             from {
                 opacity: 0;
@@ -102,19 +113,23 @@
                 transform: translateY(0);
             }
         }
+
         .animate-fade-in-up {
             animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
         }
+
         .progress-ring {
             transition: stroke-dashoffset 0.35s;
             transform: rotate(-90deg);
             transform-origin: 50% 50%;
         }
+
         input[type="time"]::-webkit-calendar-picker-indicator,
         input[type="date"]::-webkit-calendar-picker-indicator {
             filter: invert(1);
             cursor: pointer;
         }
+
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -128,6 +143,7 @@
             z-index: 1000;
             padding: 1rem;
         }
+
         .modal-content {
             background: rgba(17, 24, 39, 0.95);
             border-radius: 1rem;
@@ -137,24 +153,30 @@
             max-height: 90vh;
             overflow-y: auto;
         }
+
         .sync-indicator {
             animation: pulse 2s infinite;
         }
+
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.5; }
             100% { opacity: 1; }
         }
+
         .drag-handle {
             cursor: grab;
             transition: color 0.2s ease;
         }
+
         .drag-handle:active {
             cursor: grabbing;
         }
+
         .drag-handle:hover {
             color: #9333ea;
         }
+
         .filters-container {
             display: flex;
             gap: 0.5rem;
@@ -165,101 +187,32 @@
             scrollbar-width: thin;
             scrollbar-color: #4b5563 #1f2937;
         }
+
         .filters-container::-webkit-scrollbar {
             height: 6px;
         }
+
         .filters-container::-webkit-scrollbar-track {
             background: #1f2937;
             border-radius: 3px;
         }
+
         .filters-container::-webkit-scrollbar-thumb {
             background: #4b5563;
             border-radius: 3px;
         }
+
         .filters-container::-webkit-scrollbar-thumb:hover {
             background: #6b7280;
-        }
-        .connection-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 500;
-            margin-left: 0.5rem;
-        }
-        .connection-status.connected {
-            background-color: rgba(34, 197, 94, 0.15);
-            color: rgb(34, 197, 94);
-        }
-        .connection-status.disconnected {
-            background-color: rgba(239, 68, 68, 0.15);
-            color: rgb(239, 68, 68);
-        }
-        .status-indicator {
-            display: inline-block;
-            width: 0.5rem;
-            height: 0.5rem;
-            border-radius: 9999px;
-        }
-        .status-indicator.connected {
-            background-color: rgb(34, 197, 94);
-            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
-        }
-        .status-indicator.disconnected {
-            background-color: rgb(239, 68, 68);
         }
     </style>
 </head>
 <body>
     <div id="root"></div>
+
     <script type="text/babel">
-        const { useState, useEffect, useCallback, useRef } = React;
+        const { useState, useEffect, useCallback } = React;
         
-        // Configuração do Firebase - Mantendo suas credenciais
-        const firebaseConfig = {
-            apiKey: "AIzaSyBMlMkubD980K5ynN5Ud3XEYNWK3Q8RklU",
-            authDomain: "db-test-7e79c.firebaseapp.com",
-            projectId: "db-test-7e79c",
-            storageBucket: "db-test-7e79c.firebasestorage.app",
-            messagingSenderId: "472155269675",
-            appId: "1:472155269675:web:99df5c6d830927e612586e",
-            measurementId: "G-Z21SZ5XF50"
-        };
-
-        // Inicializar Firebase de forma segura
-        let app = null;
-        let db = null;
-        let auth = null;
-        
-        try {
-            // Verificar se já existe uma instância
-            if (!firebase.apps.length) {
-                app = firebase.initializeApp(firebaseConfig);
-                db = firebase.firestore(app);
-                auth = firebase.auth(app);
-                
-                // Configurar acesso offline
-                db.enablePersistence()
-                    .catch((err) => {
-                        if (err.code === 'failed-precondition') {
-                            console.log('Várias abas abertas, persistência offline desabilitada');
-                        } else if (err.code === 'unimplemented') {
-                            console.log('Navegador não suporta persistência offline');
-                        }
-                    });
-                
-                console.log("Firebase inicializado com sucesso!");
-            } else {
-                app = firebase.apps[0];
-                db = firebase.firestore(app);
-                auth = firebase.auth(app);
-            }
-        } catch (error) {
-            console.error("Erro ao inicializar Firebase:", error);
-        }
-
         // JSON padrão para frases de elogio
         const defaultPhrases = {
             "completionTexts": [
@@ -269,202 +222,86 @@
             ]
         };
 
-        // API para Firestore - Versão corrigida e otimizada
-        const FirestoreTasksAPI = {
-            getTasksCollection: () => {
-                if (!db) throw new Error("Firestore não inicializado");
-                return db.collection('tasks');
-            },
+        // Simulação de um backend para tarefas compartilhadas
+        const SharedTasksAPI = {
+            // Chave única para simular um "servidor" compartilhado
+            getStorageKey: () => "shared_tasks_database",
             
-            getPhrasesCollection: () => {
-                if (!db) throw new Error("Firestore não inicializado");
-                return db.collection('phrases');
-            },
-            
-            getCurrentUserId: () => {
-                const currentUser = auth.currentUser;
-                if (currentUser) {
-                    return currentUser.uid;
-                }
-                
-                // Fallback para usuário anônimo
-                let userId = localStorage.getItem('dailyTasks_userId');
-                if (!userId) {
-                    userId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                    localStorage.setItem('dailyTasks_userId', userId);
-                }
-                return userId;
-            },
-            
-            // Testar conexão com o Firestore
-            testConnection: async () => {
+            // Buscar todas as tarefas
+            getTasks: () => {
                 try {
-                    const testRef = FirestoreTasksAPI.getPhrasesCollection().doc('test');
-                    await testRef.get();
-                    return true;
-                } catch (error) {
-                    console.error("Falha no teste de conexão:", error);
-                    return false;
-                }
-            },
-            
-            getTasks: async () => {
-                try {
-                    const userId = FirestoreTasksAPI.getCurrentUserId();
-                    const snapshot = await FirestoreTasksAPI.getTasksCollection()
-                        .where('userId', '==', userId)
-                        .orderBy('order', 'asc')
-                        .get();
-                    
-                    const tasks = [];
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        tasks.push({
-                            id: doc.id,
-                            ...data,
-                            createdAt: data.createdAt?.toDate?.() || new Date(),
-                            updatedAt: data.updatedAt?.toDate?.() || new Date()
-                        });
-                    });
-                    
-                    return tasks;
-                } catch (error) {
-                    console.error("Erro ao buscar tarefas:", error);
+                    const raw = localStorage.getItem(SharedTasksAPI.getStorageKey());
+                    return raw ? JSON.parse(raw) : [];
+                } catch (e) {
                     return [];
                 }
             },
             
-            getPhrases: async () => {
+            // Salvar todas as tarefas
+            saveTasks: (tasks) => {
                 try {
-                    const phrasesDoc = await FirestoreTasksAPI.getPhrasesCollection().doc('default').get();
-                    if (phrasesDoc.exists) {
-                        return phrasesDoc.data();
-                    }
-                    return defaultPhrases;
-                } catch (error) {
-                    console.error("Erro ao buscar frases:", error);
-                    return defaultPhrases;
-                }
-            },
-            
-            addTask: async (task) => {
-                try {
-                    const userId = FirestoreTasksAPI.getCurrentUserId();
-                    const tasksSnapshot = await FirestoreTasksAPI.getTasksCollection()
-                        .where('userId', '==', userId)
-                        .get();
-                    
-                    const maxOrder = tasksSnapshot.empty ? 0 : 
-                        Math.max(...tasksSnapshot.docs.map(doc => doc.data().order || 0));
-                    
-                    const newTask = {
-                        title: task.title.trim(),
-                        dueDate: task.dueDate || null,
-                        dueTime: task.dueTime || null,
-                        done: false,
-                        order: maxOrder + 1,
-                        userId: userId,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    };
-                    
-                    const docRef = await FirestoreTasksAPI.getTasksCollection().add(newTask);
-                    return { id: docRef.id, ...newTask };
-                } catch (error) {
-                    console.error("Erro ao adicionar tarefa:", error);
-                    throw error;
-                }
-            },
-            
-            updateTask: async (id, updates) => {
-                try {
-                    const taskRef = FirestoreTasksAPI.getTasksCollection().doc(id);
-                    await taskRef.update({
-                        ...updates,
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    
-                    const taskDoc = await taskRef.get();
-                    if (taskDoc.exists) {
-                        const data = taskDoc.data();
-                        return {
-                            id: taskDoc.id,
-                            ...data,
-                            createdAt: data.createdAt?.toDate?.() || new Date(),
-                            updatedAt: data.updatedAt?.toDate?.() || new Date()
-                        };
-                    }
-                    return null;
-                } catch (error) {
-                    console.error("Erro ao atualizar tarefa:", error);
-                    throw error;
-                }
-            },
-            
-            deleteTask: async (id) => {
-                try {
-                    const taskRef = FirestoreTasksAPI.getTasksCollection().doc(id);
-                    await taskRef.delete();
+                    localStorage.setItem(SharedTasksAPI.getStorageKey(), JSON.stringify(tasks));
                     return true;
-                } catch (error) {
-                    console.error("Erro ao deletar tarefa:", error);
-                    throw error;
+                } catch (e) {
+                    console.error("Erro ao salvar tarefas:", e);
+                    return false;
                 }
             },
             
-            clearCompleted: async () => {
-                try {
-                    const userId = FirestoreTasksAPI.getCurrentUserId();
-                    const snapshot = await FirestoreTasksAPI.getTasksCollection()
-                        .where('userId', '==', userId)
-                        .where('done', '==', true)
-                        .get();
-                    
-                    const batch = db.batch();
-                    snapshot.docs.forEach(doc => {
-                        batch.delete(doc.ref);
-                    });
-                    
-                    await batch.commit();
-                    return true;
-                } catch (error) {
-                    console.error("Erro ao limpar tarefas concluídas:", error);
-                    throw error;
-                }
+            // Adicionar uma nova tarefa
+            addTask: (task) => {
+                const tasks = SharedTasksAPI.getTasks();
+                const newTask = {
+                    ...task,
+                    id: Date.now().toString(),
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    order: tasks.length > 0 ? Math.max(...tasks.map(t => t.order || 0)) + 1 : 0
+                };
+                tasks.push(newTask);
+                const success = SharedTasksAPI.saveTasks(tasks);
+                return success ? newTask : null;
             },
             
-            reorderTasks: async (reorderedTasks) => {
-                try {
-                    const batch = db.batch();
-                    
-                    reorderedTasks.forEach((task, index) => {
-                        const taskRef = FirestoreTasksAPI.getTasksCollection().doc(task.id);
-                        batch.update(taskRef, {
-                            order: index,
-                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                    });
-                    
-                    await batch.commit();
-                    return true;
-                } catch (error) {
-                    console.error("Erro ao reordenar tarefas:", error);
-                    throw error;
-                }
+            // Atualizar uma tarefa existente
+            updateTask: (id, updates) => {
+                const tasks = SharedTasksAPI.getTasks();
+                const taskIndex = tasks.findIndex(t => t.id === id);
+                if (taskIndex === -1) return null;
+                
+                tasks[taskIndex] = {
+                    ...tasks[taskIndex],
+                    ...updates,
+                    updatedAt: new Date().toISOString()
+                };
+                
+                const success = SharedTasksAPI.saveTasks(tasks);
+                return success ? tasks[taskIndex] : null;
             },
             
-            initializeDefaultData: async () => {
-                try {
-                    const phrasesRef = FirestoreTasksAPI.getPhrasesCollection().doc('default');
-                    const phrasesDoc = await phrasesRef.get();
-                    
-                    if (!phrasesDoc.exists) {
-                        await phrasesRef.set(defaultPhrases);
-                        console.log("Frases padrão inicializadas no Firestore");
-                    }
-                } catch (error) {
-                    console.error("Erro ao inicializar dados padrão:", error);
-                }
+            // Remover uma tarefa
+            deleteTask: (id) => {
+                const tasks = SharedTasksAPI.getTasks();
+                const filteredTasks = tasks.filter(t => t.id !== id);
+                return SharedTasksAPI.saveTasks(filteredTasks);
+            },
+            
+            // Limpar tarefas concluídas
+            clearCompleted: () => {
+                const tasks = SharedTasksAPI.getTasks();
+                const pendingTasks = tasks.filter(t => !t.done);
+                return SharedTasksAPI.saveTasks(pendingTasks);
+            },
+
+            // Reordenar tarefas
+            reorderTasks: (reorderedTasks) => {
+                // Atualizar a ordem das tarefas
+                const updatedTasks = reorderedTasks.map((task, index) => ({
+                    ...task,
+                    order: index,
+                    updatedAt: new Date().toISOString()
+                }));
+                return SharedTasksAPI.saveTasks(updatedTasks);
             }
         };
 
@@ -473,12 +310,20 @@
                 const welcomeShown = localStorage.getItem("dailyTasks_welcomeShown");
                 return welcomeShown !== "true";
             });
+
             const [tasks, setTasks] = useState([]);
             const [isLoading, setIsLoading] = useState(true);
-            const [isConnected, setIsConnected] = useState(false);
-            const [connectionError, setConnectionError] = useState(null);
             const [lastSync, setLastSync] = useState(null);
-            const [phrases, setPhrases] = useState(defaultPhrases);
+
+            const [phrases, setPhrases] = useState(() => {
+                try {
+                    const raw = localStorage.getItem("dailyTasks_phrases");
+                    return raw ? JSON.parse(raw) : defaultPhrases;
+                } catch (e) {
+                    return defaultPhrases;
+                }
+            });
+            
             const [title, setTitle] = useState("");
             const [dueDate, setDueDate] = useState("");
             const [dueTime, setDueTime] = useState("");
@@ -488,167 +333,73 @@
             const [stats, setStats] = useState({ total: 0, completed: 0, pending: 0 });
             const [showPhrasesModal, setShowPhrasesModal] = useState(false);
             const [newPhrase, setNewPhrase] = useState("");
+            
+            // Estados para drag and drop
             const [draggedTask, setDraggedTask] = useState(null);
             const [dragOverTask, setDragOverTask] = useState(null);
-            
-            const tasksUnsubscribeRef = useRef(null);
-            const phrasesUnsubscribeRef = useRef(null);
-            const isMountedRef = useRef(true);
-            
-            // Monitorar conexão com a internet
-            useEffect(() => {
-                const handleOnline = () => {
-                    console.log("Conexão restaurada");
-                    setIsConnected(true);
-                    setConnectionError(null);
-                };
-                
-                const handleOffline = () => {
-                    console.log("Sem conexão com a internet");
-                    setIsConnected(false);
-                    setConnectionError("Sem conexão com a internet");
-                };
-                
-                window.addEventListener('online', handleOnline);
-                window.addEventListener('offline', handleOffline);
-                
-                // Verificar conexão inicial
-                setIsConnected(navigator.onLine);
-                
-                return () => {
-                    window.removeEventListener('online', handleOnline);
-                    window.removeEventListener('offline', handleOffline);
-                };
-            }, []);
-            
-            // Inicializar Firebase e dados
-            useEffect(() => {
-                const initApp = async () => {
-                    if (!db || !auth) {
-                        console.error("Firebase não foi inicializado corretamente");
-                        setConnectionError("Falha na inicialização do Firebase");
-                        setIsLoading(false);
-                        return;
-                    }
-                    
-                    try {
-                        // Testar conexão com o Firestore
-                        const connectionTest = await FirestoreTasksAPI.testConnection();
-                        if (!connectionTest) {
-                            throw new Error("Não foi possível conectar ao Firestore");
-                        }
-                        
-                        // Inicializar dados padrão
-                        await FirestoreTasksAPI.initializeDefaultData();
-                        
-                        // Carregar dados iniciais
-                        const [initialTasks, initialPhrases] = await Promise.all([
-                            FirestoreTasksAPI.getTasks(),
-                            FirestoreTasksAPI.getPhrases()
-                        ]);
-                        
-                        if (isMountedRef.current) {
-                            setTasks(initialTasks);
-                            setPhrases(initialPhrases);
-                            setLastSync(new Date());
-                            setIsConnected(true);
-                            setConnectionError(null);
-                        }
-                        
-                        // Setup listeners em tempo real
-                        setupRealtimeListeners();
-                        
-                    } catch (error) {
-                        console.error("Erro ao inicializar app:", error);
-                        setConnectionError(error.message || "Erro ao conectar com o banco de dados");
-                        setIsConnected(false);
-                    } finally {
-                        if (isMountedRef.current) {
-                            setIsLoading(false);
-                        }
-                    }
-                };
-                
-                initApp();
-                
-                return () => {
-                    isMountedRef.current = false;
-                    // Cleanup dos listeners
-                    if (tasksUnsubscribeRef.current) tasksUnsubscribeRef.current();
-                    if (phrasesUnsubscribeRef.current) phrasesUnsubscribeRef.current();
-                };
-            }, []);
-            
-            const setupRealtimeListeners = () => {
+
+            // Carregar tarefas do "backend" compartilhado
+            const loadTasks = useCallback(() => {
+                setIsLoading(true);
                 try {
-                    const userId = FirestoreTasksAPI.getCurrentUserId();
-                    
-                    // Listener para tasks
-                    tasksUnsubscribeRef.current = FirestoreTasksAPI.getTasksCollection()
-                        .where('userId', '==', userId)
-                        .orderBy('order', 'asc')
-                        .onSnapshot({ includeMetadataChanges: true }, (snapshot) => {
-                            if (snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites) {
-                                console.log("Dados carregados do cache");
-                                return;
-                            }
-                            
-                            const tasksData = [];
-                            snapshot.forEach(doc => {
-                                const data = doc.data();
-                                tasksData.push({
-                                    id: doc.id,
-                                    ...data,
-                                    createdAt: data.createdAt?.toDate?.() || new Date(),
-                                    updatedAt: data.updatedAt?.toDate?.() || new Date()
-                                });
-                            });
-                            
-                            if (isMountedRef.current) {
-                                setTasks(tasksData);
-                                setLastSync(new Date());
-                            }
-                        }, error => {
-                            console.error("Erro no listener de tasks:", error);
-                            if (isMountedRef.current) {
-                                setIsConnected(false);
-                                setConnectionError(`Erro ao ouvir tarefas: ${error.message}`);
-                            }
-                        });
-                    
-                    // Listener para frases
-                    phrasesUnsubscribeRef.current = FirestoreTasksAPI.getPhrasesCollection().doc('default')
-                        .onSnapshot({ includeMetadataChanges: true }, (snapshot) => {
-                            if (snapshot.metadata.fromCache) return;
-                            
-                            if (snapshot.exists && isMountedRef.current) {
-                                setPhrases(snapshot.data());
-                            }
-                        }, error => {
-                            console.error("Erro no listener de frases:", error);
-                        });
+                    const sharedTasks = SharedTasksAPI.getTasks();
+                    // Ordenar tarefas pela ordem salva
+                    const sortedTasks = sharedTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
+                    setTasks(sortedTasks);
+                    setLastSync(new Date());
                 } catch (error) {
-                    console.error("Erro ao configurar listeners:", error);
-                    if (isMountedRef.current) {
-                        setIsConnected(false);
-                        setConnectionError(`Erro ao configurar listeners: ${error.message}`);
-                    }
+                    console.error("Erro ao carregar tarefas:", error);
+                } finally {
+                    setIsLoading(false);
                 }
+            }, []);
+
+            // Salvar phrases no localStorage quando mudarem
+            useEffect(() => {
+                localStorage.setItem("dailyTasks_phrases", JSON.stringify(phrases));
+            }, [phrases]);
+
+            // Carregar tarefas ao inicializar
+            useEffect(() => {
+                loadTasks();
+            }, [loadTasks]);
+
+            // Função auxiliar para criar data sem problemas de fuso horário
+            const createDate = (dateString, timeString = null) => {
+                if (!dateString) return null;
+                
+                const [year, month, day] = dateString.split('-').map(Number);
+                let date = new Date(year, month - 1, day);
+                
+                if (timeString) {
+                    const [hours, minutes] = timeString.split(':').map(Number);
+                    date.setHours(hours, minutes, 0, 0);
+                } else {
+                    // Se não tem horário, considera o final do dia (23:59)
+                    date.setHours(23, 59, 0, 0);
+                }
+                
+                return date;
             };
-            
+
             // Calcular estatísticas
             useEffect(() => {
                 const calculateStats = () => {
                     const now = new Date();
+                    
                     const completed = tasks.filter(t => t.done).length;
                     const pending = tasks.filter(t => {
                         if (t.done) return false;
+                        
+                        // Verificar se a tarefa está atrasada
                         if (t.dueDate) {
                             const taskDate = createDate(t.dueDate, t.dueTime);
                             return taskDate && taskDate < now;
                         }
+                        
                         return false;
                     }).length;
+                    
                     setStats({
                         total: tasks.length,
                         completed,
@@ -656,216 +407,206 @@
                         completionRate: tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0
                     });
                 };
+
                 calculateStats();
             }, [tasks]);
-            
+
             useEffect(() => {
                 if (tasks.length > 0) {
                     setShowWelcome(false);
                 }
             }, [tasks]);
             
-            const createDate = (dateString, timeString = null) => {
-                if (!dateString) return null;
-                const [year, month, day] = dateString.split('-').map(Number);
-                let date = new Date(year, month - 1, day);
-                if (timeString) {
-                    const [hours, minutes] = timeString.split(':').map(Number);
-                    date.setHours(hours, minutes, 0, 0);
-                } else {
-                    date.setHours(23, 59, 0, 0);
-                }
-                return date;
-            };
-            
-            const addOrUpdateTask = useCallback(async (e) => {
+            const addOrUpdateTask = useCallback((e) => {
                 e.preventDefault();
-                if (!title.trim() || !isConnected) return;
-                
+                if (!title.trim()) return;
+
                 setIsLoading(true);
-                try {
-                    if (editingId) {
-                        const updatedTask = await FirestoreTasksAPI.updateTask(editingId, {
-                            title: title.trim(),
-                            dueDate: dueDate || null,
-                            dueTime: dueTime || null
-                        });
-                        if (updatedTask && isMountedRef.current) {
-                            setEditingId(null);
-                        }
-                    } else {
-                        const newTask = {
-                            title: title.trim(),
-                            dueDate: dueDate || null,
-                            dueTime: dueTime || null,
-                            done: false,
-                        };
-                        await FirestoreTasksAPI.addTask(newTask);
-                    }
-                    
-                    if (isMountedRef.current) {
-                        setTitle("");
-                        setDueDate("");
-                        setDueTime("");
-                    }
-                } catch (error) {
-                    console.error("Erro ao salvar tarefa:", error);
-                    alert(`Erro ao salvar tarefa: ${error.message || 'Tente novamente mais tarde'}`);
-                } finally {
-                    if (isMountedRef.current) {
-                        setIsLoading(false);
-                    }
-                }
-            }, [title, dueDate, dueTime, editingId, isConnected]);
-            
-            // Demais funções (toggleDone, startEdit, removeTask, clearCompleted, refreshTasks, drag and drop, etc.)
-            // Mantidas idênticas ao código original, pois o problema está apenas na conexão com o banco
-            
-            const toggleDone = useCallback(async (id) => {
-                if (!isConnected) return;
                 
-                try {
-                    const task = tasks.find(t => t.id === id);
-                    if (task) {
-                        await FirestoreTasksAPI.updateTask(id, { done: !task.done });
+                if (editingId) {
+                    // Atualizar tarefa existente
+                    const success = SharedTasksAPI.updateTask(editingId, {
+                        title: title.trim(),
+                        dueDate: dueDate || null,
+                        dueTime: dueTime || null
+                    });
+                    
+                    if (success) {
+                        loadTasks();
+                        setEditingId(null);
                     }
-                } catch (error) {
-                    console.error("Erro ao atualizar status da tarefa:", error);
-                    alert("Erro ao atualizar tarefa. Verifique sua conexão.");
+                } else {
+                    // Adicionar nova tarefa
+                    const newTask = {
+                        title: title.trim(),
+                        dueDate: dueDate || null,
+                        dueTime: dueTime || null,
+                        done: false,
+                    };
+                    
+                    const addedTask = SharedTasksAPI.addTask(newTask);
+                    if (addedTask) {
+                        loadTasks();
+                    }
                 }
-            }, [tasks, isConnected]);
+
+                setTitle("");
+                setDueDate("");
+                setDueTime("");
+            }, [title, dueDate, dueTime, editingId, loadTasks]);
+
+            const handleStart = useCallback(() => {
+                setShowWelcome(false);
+                localStorage.setItem("dailyTasks_welcomeShown", "true");
+            }, []);
             
+            const toggleDone = useCallback((id) => {
+                setIsLoading(true);
+                const task = tasks.find(t => t.id === id);
+                if (task) {
+                    const success = SharedTasksAPI.updateTask(id, { done: !task.done });
+                    if (success) {
+                        loadTasks();
+                    }
+                }
+            }, [tasks, loadTasks]);
+
             const startEdit = useCallback((t) => {
                 setEditingId(t.id);
                 setTitle(t.title);
                 setDueDate(t.dueDate || "");
                 setDueTime(t.dueTime || "");
             }, []);
-            
-            const removeTask = useCallback(async (id) => {
-                if (!isConnected || !confirm("Tem certeza que deseja excluir esta tarefa?")) return;
-                
-                try {
-                    await FirestoreTasksAPI.deleteTask(id);
-                } catch (error) {
-                    console.error("Erro ao excluir tarefa:", error);
-                    alert("Erro ao excluir tarefa. Tente novamente.");
-                }
-            }, [isConnected]);
-            
-            const clearCompleted = useCallback(async () => {
-                if (!isConnected || !confirm("Remover todas as tarefas concluídas?")) return;
-                
-                try {
-                    await FirestoreTasksAPI.clearCompleted();
-                } catch (error) {
-                    console.error("Erro ao limpar tarefas concluídas:", error);
-                    alert("Erro ao limpar tarefas concluídas. Tente novamente.");
-                }
-            }, [isConnected]);
-            
-            const refreshTasks = useCallback(async () => {
-                if (!isConnected) return;
+
+            const removeTask = useCallback((id) => {
+                if (!confirm("Tem certeza que deseja excluir esta tarefa?")) return;
                 
                 setIsLoading(true);
-                try {
-                    const freshTasks = await FirestoreTasksAPI.getTasks();
-                    if (isMountedRef.current) {
-                        setTasks(freshTasks);
-                        setLastSync(new Date());
-                    }
-                } catch (error) {
-                    console.error("Erro ao atualizar tarefas:", error);
-                } finally {
-                    if (isMountedRef.current) {
-                        setIsLoading(false);
-                    }
+                const success = SharedTasksAPI.deleteTask(id);
+                if (success) {
+                    loadTasks();
                 }
-            }, [isConnected]);
-            
+            }, [loadTasks]);
+
+            const clearCompleted = useCallback(() => {
+                if (!confirm("Remover todas as tarefas concluídas?")) return;
+                
+                setIsLoading(true);
+                const success = SharedTasksAPI.clearCompleted();
+                if (success) {
+                    loadTasks();
+                }
+            }, [loadTasks]);
+
+            const refreshTasks = useCallback(() => {
+                loadTasks();
+            }, [loadTasks]);
+
             // Funções para Drag and Drop
             const handleDragStart = useCallback((e, task) => {
                 setDraggedTask(task);
                 e.dataTransfer.effectAllowed = 'move';
+                // Adicionar um pequeno delay para melhor experiência visual
                 setTimeout(() => {
                     e.target.classList.add('dragging');
                 }, 0);
             }, []);
-            
+
             const handleDragOver = useCallback((e, task) => {
                 e.preventDefault();
                 if (draggedTask && draggedTask.id !== task.id) {
                     setDragOverTask(task);
                 }
             }, [draggedTask]);
-            
+
             const handleDragLeave = useCallback((e) => {
                 e.preventDefault();
                 setDragOverTask(null);
             }, []);
-            
-            const handleDrop = useCallback(async (e, targetTask) => {
+
+            const handleDrop = useCallback((e, targetTask) => {
                 e.preventDefault();
-                if (!isConnected || !draggedTask || draggedTask.id === targetTask.id) {
+                if (!draggedTask || draggedTask.id === targetTask.id) {
                     setDraggedTask(null);
                     setDragOverTask(null);
                     return;
                 }
-                
-                try {
-                    const taskList = [...tasks];
-                    const draggedIndex = taskList.findIndex(t => t.id === draggedTask.id);
-                    const targetIndex = taskList.findIndex(t => t.id === targetTask.id);
+
+                // Reordenar as tarefas
+                const taskList = [...tasks];
+                const draggedIndex = taskList.findIndex(t => t.id === draggedTask.id);
+                const targetIndex = taskList.findIndex(t => t.id === targetTask.id);
+
+                if (draggedIndex !== -1 && targetIndex !== -1) {
+                    // Remover a tarefa arrastada
+                    const [movedTask] = taskList.splice(draggedIndex, 1);
+                    // Inserir na nova posição
+                    taskList.splice(targetIndex, 0, movedTask);
+
+                    // Atualizar estado local
+                    setTasks(taskList);
                     
-                    if (draggedIndex !== -1 && targetIndex !== -1) {
-                        const [movedTask] = taskList.splice(draggedIndex, 1);
-                        taskList.splice(targetIndex, 0, movedTask);
-                        
-                        setIsLoading(true);
-                        await FirestoreTasksAPI.reorderTasks(taskList);
+                    // Salvar no "backend" compartilhado
+                    setIsLoading(true);
+                    const success = SharedTasksAPI.reorderTasks(taskList);
+                    if (success) {
+                        setLastSync(new Date());
                     }
-                } catch (error) {
-                    console.error("Erro ao reordenar tarefas:", error);
-                    alert("Erro ao reordenar tarefas. Tente novamente.");
-                } finally {
-                    setDraggedTask(null);
-                    setDragOverTask(null);
                     setIsLoading(false);
                 }
-            }, [draggedTask, tasks, isConnected]);
-            
+
+                setDraggedTask(null);
+                setDragOverTask(null);
+            }, [draggedTask, tasks]);
+
             const handleDragEnd = useCallback((e) => {
                 e.target.classList.remove('dragging');
                 setDraggedTask(null);
                 setDragOverTask(null);
             }, []);
-            
+
             const getTaskPriority = (task) => {
                 if (task.done) return "none";
                 if (!task.dueDate) return "none";
+                
                 const now = new Date();
                 const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                 const tomorrow = new Date(today);
                 tomorrow.setDate(tomorrow.getDate() + 1);
+                
                 const taskDate = createDate(task.dueDate);
                 if (!taskDate) return "none";
+                
+                // Ajustar para comparar apenas a data (sem hora)
                 const taskDateOnly = new Date(taskDate.getFullYear(), taskDate.getMonth(), taskDate.getDate());
+                
+                // Se a tarefa é para hoje
                 if (taskDateOnly.getTime() === today.getTime()) {
+                    // Se tem horário definido, verificar se está atrasada
                     if (task.dueTime) {
                         return taskDate < now ? "urgent" : "high";
                     }
                     return "high";
                 }
+                
+                // Se a tarefa é para antes de hoje (atrasada)
                 if (taskDateOnly < today) return "urgent";
+                
+                // Se a tarefa é para amanhã
                 if (taskDateOnly.getTime() === tomorrow.getTime()) return "medium";
+                
+                // Se a tarefa é para os próximos dias (2-3 dias)
                 const dayAfterTomorrow = new Date(tomorrow);
                 dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
                 const inThreeDays = new Date(tomorrow);
                 inThreeDays.setDate(inThreeDays.getDate() + 2);
+                
                 if (taskDateOnly >= dayAfterTomorrow && taskDateOnly <= inThreeDays) return "medium";
+                
+                // Tarefas para mais de 3 dias
                 return "low";
             };
-            
+
             const getPriorityBadge = (priority) => {
                 const badges = {
                     urgent: { text: "Atrasado", color: "bg-red-900 text-red-300 border-red-700" },
@@ -876,16 +617,19 @@
                 };
                 return badges[priority];
             };
-            
+
             const formatDate = (dateString) => {
                 if (!dateString) return '';
+                
                 const date = createDate(dateString);
                 const today = new Date();
                 const tomorrow = new Date(today);
                 tomorrow.setDate(tomorrow.getDate() + 1);
+                
                 const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
                 const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
                 const tomorrowOnly = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
+                
                 if (dateOnly.getTime() === todayOnly.getTime()) {
                     return 'Hoje';
                 } else if (dateOnly.getTime() === tomorrowOnly.getTime()) {
@@ -894,7 +638,7 @@
                     return date.toLocaleDateString('pt-BR');
                 }
             };
-            
+
             const getCompletionText = () => {
                 if (stats.completionRate === 100 && phrases.completionTexts.length > 0) {
                     return phrases.completionTexts[0];
@@ -911,79 +655,60 @@
                 if (phrases.completionTexts.length > 4) {
                     return phrases.completionTexts[4];
                 }
+                // Fallback se não houver frases suficientes
                 return "Continue assim!";
             };
             
-            const handleStart = useCallback(() => {
-                setShowWelcome(false);
-                localStorage.setItem("dailyTasks_welcomeShown", "true");
-            }, []);
-            
             // Funções para gerenciar frases
-            const addPhrase = async () => {
-                if (!newPhrase.trim() || !isConnected) return;
-                
-                try {
-                    const updatedPhrases = {
-                        ...phrases,
-                        completionTexts: [...phrases.completionTexts, newPhrase.trim()]
-                    };
-                    await FirestoreTasksAPI.getPhrasesCollection().doc('default').set(updatedPhrases);
-                    setNewPhrase("");
-                } catch (error) {
-                    console.error("Erro ao adicionar frase:", error);
-                    alert("Erro ao adicionar frase. Tente novamente.");
-                }
+            const addPhrase = () => {
+                if (!newPhrase.trim()) return;
+                setPhrases(prev => ({
+                    ...prev,
+                    completionTexts: [...prev.completionTexts, newPhrase.trim()]
+                }));
+                setNewPhrase("");
             };
-            
-            const removePhrase = async (index) => {
-                if (!isConnected || !confirm("Tem certeza que deseja remover esta frase?")) return;
-                
-                try {
-                    const updatedPhrases = {
-                        ...phrases,
-                        completionTexts: phrases.completionTexts.filter((_, i) => i !== index)
-                    };
-                    await FirestoreTasksAPI.getPhrasesCollection().doc('default').set(updatedPhrases);
-                } catch (error) {
-                    console.error("Erro ao remover frase:", error);
-                    alert("Erro ao remover frase. Tente novamente.");
-                }
+
+            const removePhrase = (index) => {
+                if (!confirm("Tem certeza que deseja remover esta frase?")) return;
+                setPhrases(prev => ({
+                    ...prev,
+                    completionTexts: prev.completionTexts.filter((_, i) => i !== index)
+                }));
             };
-            
-            const resetPhrases = async () => {
-                if (!isConnected || !confirm("Isso restaurará as frases padrão. Tem certeza?")) return;
-                
-                try {
-                    await FirestoreTasksAPI.getPhrasesCollection().doc('default').set(defaultPhrases);
-                } catch (error) {
-                    console.error("Erro ao resetar frases:", error);
-                    alert("Erro ao resetar frases. Tente novamente.");
-                }
+
+            const resetPhrases = () => {
+                if (!confirm("Isso restaurará as frases padrão. Tem certeza?")) return;
+                setPhrases(defaultPhrases);
             };
-            
+
             const visibleTasks = tasks.filter((t) => {
                 if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
+
                 if (filter === "all") return true;
                 if (filter === "completed") return t.done;
                 if (filter === "pending") return !t.done;
                 if (filter === "overdue") {
                     if (t.done || !t.dueDate) return false;
+                    
                     const now = new Date();
                     const taskDate = createDate(t.dueDate, t.dueTime);
+                    
                     return taskDate && taskDate < now;
                 }
                 if (filter === "today") {
                     if (t.done || !t.dueDate) return false;
+                    
                     const today = new Date();
                     const taskDate = createDate(t.dueDate);
                     const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
                     const taskDateOnly = new Date(taskDate.getFullYear(), taskDate.getMonth(), taskDate.getDate());
+                    
                     return taskDateOnly.getTime() === todayOnly.getTime();
                 }
                 return true;
             });
-            
+
             return (
                 <div className="min-h-screen flex flex-col items-center justify-center p-4">
                     {showWelcome && (
@@ -1007,6 +732,7 @@
                             </button>
                         </div>
                     )}
+                    
                     <div className="w-full max-w-4xl">
                         <div className={`glass-card rounded-2xl shadow-lg overflow-hidden border border-gray-700 ${showWelcome ? 'hidden' : 'block'}`}>
                             <div className="p-5 border-b border-gray-700">
@@ -1021,25 +747,27 @@
                                             <i className="fas fa-exclamation-circle text-red-400"></i>
                                             <span className="font-medium text-red-300">{stats.pending}</span>
                                         </div>
-                                        <div className="connection-status">
-                                            <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}></span>
-                                            <span>{isConnected ? 'Conectado' : connectionError || 'Desconectado'}</span>
-                                        </div>
+                                        {isLoading && (
+                                            <div className="flex items-center gap-1 text-purple-400 sync-indicator">
+                                                <i className="fas fa-sync-alt fa-spin"></i>
+                                                <span className="text-xs">Sincronizando...</span>
+                                            </div>
+                                        )}
                                     </div>
+                                    
                                     <div className="flex gap-2">
                                         <button
                                             onClick={refreshTasks}
-                                            disabled={!isConnected || isLoading}
-                                            className="px-3 py-1.5 rounded-lg text-gray-300 hover:text-blue-300 hover:bg-blue-900/30 border border-blue-700/50 transition-all duration-300 flex items-center gap-1.5 text-sm disabled:opacity-50"
+                                            className="px-3 py-1.5 rounded-lg text-gray-300 hover:text-blue-300 hover:bg-blue-900/30 border border-blue-700/50 transition-all duration-300 flex items-center gap-1.5 text-sm"
                                             title="Atualizar tarefas"
                                         >
                                             <i className="fas fa-sync-alt" style={{fontSize: '0.85em'}}></i>
                                             <span className="hidden sm:inline">Atualizar</span>
                                         </button>
+                                        
                                         <button
                                             onClick={() => setShowPhrasesModal(true)}
-                                            disabled={isLoading}
-                                            className="px-3 py-1.5 rounded-lg text-gray-300 hover:text-purple-300 hover:bg-purple-900/30 border border-purple-700/50 transition-all duration-300 flex items-center gap-1.5 text-sm disabled:opacity-50"
+                                            className="px-3 py-1.5 rounded-lg text-gray-300 hover:text-purple-300 hover:bg-purple-900/30 border border-purple-700/50 transition-all duration-300 flex items-center gap-1.5 text-sm"
                                         >
                                             <i className="fas fa-comment-alt" style={{fontSize: '0.85em'}}></i>
                                             <span className="hidden sm:inline">Frases</span>
@@ -1047,7 +775,7 @@
                                     </div>
                                 </div>
                             </div>
-                            {/* Restante do componente mantido idêntico ao original */}
+
                             <div className="p-5 border-b border-gray-700">
                                 <form onSubmit={addOrUpdateTask} className="relative">
                                     <div className="flex flex-col gap-3">
@@ -1062,14 +790,15 @@
                                                         onChange={(e) => setTitle(e.target.value)}
                                                         placeholder={editingId ? "Editar tarefa..." : "O que você precisa fazer hoje?"}
                                                         className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-900 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all duration-300 text-white placeholder-gray-500"
-                                                        disabled={isLoading || !isConnected}
+                                                        disabled={isLoading}
                                                     />
                                                 </div>
                                             </div>
+                                            
                                             <div className="flex flex-col sm:flex-row gap-3">
                                                 <button
                                                     type="submit"
-                                                    disabled={isLoading || !isConnected || !title.trim()}
+                                                    disabled={isLoading}
                                                     className="px-4 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium shadow-md transition-all duration-300 flex items-center justify-center min-w-[110px] disabled:opacity-50 disabled:cursor-not-allowed"
                                                 >
                                                     <span className="flex items-center gap-1.5">
@@ -1090,6 +819,7 @@
                                                 </button>
                                             </div>
                                         </div>
+                                        
                                         <div className="flex flex-col sm:flex-row gap-3">
                                             <div className="relative flex-1">
                                                 <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
@@ -1100,9 +830,10 @@
                                                     value={dueDate}
                                                     onChange={(e) => setDueDate(e.target.value)}
                                                     className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-900 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all duration-300"
-                                                    disabled={isLoading || !isConnected}
+                                                    disabled={isLoading}
                                                 />
                                             </div>
+                                            
                                             <div className="relative flex-1">
                                                 <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
                                                     <i className="far fa-clock"></i>
@@ -1112,13 +843,14 @@
                                                     value={dueTime}
                                                     onChange={(e) => setDueTime(e.target.value)}
                                                     className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-900 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all duration-300"
-                                                    disabled={isLoading || !isConnected}
+                                                    disabled={isLoading}
                                                 />
                                             </div>
                                         </div>
                                     </div>
                                 </form>
                             </div>
+
                             <div className="p-5 border-b border-gray-700">
                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                                     <div className="filters-container">
@@ -1145,6 +877,7 @@
                                             </button>
                                         ))}
                                     </div>
+
                                     <div className="flex gap-2 mt-3 md:mt-0">
                                         <div className="relative">
                                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -1158,9 +891,10 @@
                                                 disabled={isLoading}
                                             />
                                         </div>
+
                                         <button
                                             onClick={clearCompleted}
-                                            disabled={isLoading || !isConnected}
+                                            disabled={isLoading}
                                             className="px-3 py-1.5 rounded-lg text-gray-300 hover:text-red-300 hover:bg-red-900/30 border border-red-700/50 transition-all duration-300 flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <i className="fas fa-trash-alt" style={{fontSize: '0.85em'}}></i>
@@ -1169,6 +903,7 @@
                                     </div>
                                 </div>
                             </div>
+
                             <main className="p-5">
                                 {isLoading && tasks.length === 0 ? (
                                     <div className="text-center py-12">
@@ -1177,10 +912,10 @@
                                                 <i className="fas fa-spinner fa-spin"></i>
                                             </div>
                                             <h3 className="text-xl font-bold mb-1 text-gray-200">
-                                                {isConnected ? "Carregando tarefas..." : "Sem conexão com a internet"}
+                                                Carregando tarefas...
                                             </h3>
                                             <p className="text-gray-400 text-sm">
-                                                {connectionError || (isConnected ? "Conectando ao banco de dados..." : "Verifique sua conexão e tente novamente")}
+                                                Conectando ao sistema compartilhado...
                                             </p>
                                         </div>
                                     </div>
@@ -1222,10 +957,11 @@
                                             const isOverdue = priority === "urgent" && !t.done;
                                             const isDragging = draggedTask && draggedTask.id === t.id;
                                             const isDragOver = dragOverTask && dragOverTask.id === t.id;
+                                            
                                             return (
                                                 <div
                                                     key={t.id}
-                                                    draggable={!isLoading && isConnected}
+                                                    draggable={!isLoading}
                                                     onDragStart={(e) => handleDragStart(e, t)}
                                                     onDragOver={(e) => handleDragOver(e, t)}
                                                     onDragLeave={handleDragLeave}
@@ -1241,7 +977,7 @@
                                                         'border-gray-700'
                                                     } ${
                                                         editingId === t.id ? 'ring-2 ring-purple-500/50' : ''
-                                                    } ${isLoading || !isConnected ? 'opacity-50' : ''}`}
+                                                    } ${isLoading ? 'opacity-50' : ''}`}
                                                 >
                                                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                                         <div className="flex items-start gap-3 flex-1">
@@ -1250,11 +986,12 @@
                                                                     type="checkbox"
                                                                     checked={t.done}
                                                                     onChange={() => toggleDone(t.id)}
-                                                                    disabled={isLoading || !isConnected}
+                                                                    disabled={isLoading}
                                                                     className="w-4.5 h-4.5 rounded border-gray-600 bg-gray-800 text-purple-600 focus:ring-purple-600 focus:ring-offset-0 cursor-pointer transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                                                     aria-label={`Marcar ${t.title}`}
                                                                 />
                                                             </div>
+                                                            
                                                             <div className="flex-1 min-w-0">
                                                                 <div className={`text-sm font-medium transition-all duration-300 ${
                                                                     t.done ? "line-through text-gray-500" : "text-gray-200"
@@ -1287,13 +1024,14 @@
                                                                 </div>
                                                             </div>
                                                         </div>
+                                                        
                                                         <div className="flex flex-wrap gap-1.5 justify-end">
                                                             <div className="drag-handle text-gray-400 p-1.5 cursor-grab" title="Arrastar para reordenar">
                                                                 <i className="fas fa-grip-vertical"></i>
                                                             </div>
                                                             <button 
                                                                 onClick={() => startEdit(t)} 
-                                                                disabled={isLoading || !isConnected}
+                                                                disabled={isLoading}
                                                                 className="p-1.5 rounded-md text-gray-400 hover:text-purple-400 hover:bg-purple-900/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                                                 title="Editar"
                                                             >
@@ -1301,7 +1039,7 @@
                                                             </button>
                                                             <button 
                                                                 onClick={() => removeTask(t.id)} 
-                                                                disabled={isLoading || !isConnected}
+                                                                disabled={isLoading}
                                                                 className="p-1.5 rounded-md text-gray-400 hover:text-red-400 hover:bg-red-900/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                                                 title="Excluir"
                                                             >
@@ -1315,6 +1053,7 @@
                                     </div>
                                 )}
                             </main>
+
                             <div className="p-5 bg-gray-900 border-t border-gray-700">
                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                                     <div className="flex items-center gap-4">
@@ -1364,12 +1103,14 @@
                                     <div className="text-center md:text-right">
                                         <p className="text-xs text-gray-400">
                                             <i className="far fa-clock mr-1.5 text-[0.8em]"></i>
-                                            {lastSync ? `Última sincronização: ${lastSync.toLocaleTimeString('pt-BR')}` : 'Aguardando sincronização...'}
+                                            {lastSync ? `Última sincronização: ${lastSync.toLocaleTimeString('pt-BR')}` : 'Sincronizando...'}
                                         </p>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
+                        {/* Modal de Gerenciamento de Frases */}
                         {showPhrasesModal && (
                             <div className="modal-overlay">
                                 <div className="modal-content p-5">
@@ -1382,6 +1123,7 @@
                                             <i className="fas fa-times"></i>
                                         </button>
                                     </div>
+                                    
                                     <div className="mb-4">
                                         <div className="flex gap-2 mb-3">
                                             <input
@@ -1389,24 +1131,22 @@
                                                 onChange={(e) => setNewPhrase(e.target.value)}
                                                 placeholder="Adicionar nova frase..."
                                                 className="flex-1 px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent text-white placeholder-gray-500 text-sm"
-                                                disabled={isLoading || !isConnected}
                                             />
                                             <button
                                                 onClick={addPhrase}
-                                                disabled={isLoading || !isConnected || !newPhrase.trim()}
-                                                className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm disabled:opacity-50"
+                                                className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm"
                                             >
                                                 Adicionar
                                             </button>
                                         </div>
+                                        
                                         <div className="max-h-60 overflow-y-auto">
                                             {phrases.completionTexts.map((phrase, index) => (
                                                 <div key={index} className="flex items-center justify-between p-2 bg-gray-800 rounded-lg mb-2">
                                                     <span className="text-gray-200 text-sm">{phrase}</span>
                                                     <button
                                                         onClick={() => removePhrase(index)}
-                                                        disabled={isLoading || !isConnected}
-                                                        className="text-red-400 hover:text-red-300 ml-2 disabled:opacity-50"
+                                                        className="text-red-400 hover:text-red-300 ml-2"
                                                     >
                                                         <i className="fas fa-trash-alt text-sm"></i>
                                                     </button>
@@ -1414,11 +1154,11 @@
                                             ))}
                                         </div>
                                     </div>
+                                    
                                     <div className="flex justify-between">
                                         <button
                                             onClick={resetPhrases}
-                                            disabled={isLoading || !isConnected}
-                                            className="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm disabled:opacity-50"
+                                            className="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm"
                                         >
                                             Restaurar Padrão
                                         </button>
@@ -1432,12 +1172,13 @@
                                 </div>
                             </div>
                         )}
+
                         <footer className="mt-5 text-center text-xs text-gray-600">
                             <p>
                                 <i className="fas fa-code mr-1"></i>
                                 Desenvolvido com ❤️ By D3xt4rz | 
-                                <i className="fas fa-database ml-2 mr-1"></i>
-                                {isConnected ? 'Conectado ao Firebase' : 'Desconectado do Firebase'} |
+                                <i className="fas fa-users ml-2 mr-1"></i>
+                                Sistema Compartilhado |
                                 <i className="fas fa-arrows-alt ml-2 mr-1"></i>
                                 Arraste para reordenar
                             </p>
@@ -1446,7 +1187,7 @@
                 </div>
             );
         }
-        
+
         // Renderizar a aplicação
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<DailyTasksApp />);
