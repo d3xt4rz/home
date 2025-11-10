@@ -44,11 +44,27 @@
         .task-item {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             will-change: transform, box-shadow;
+            cursor: grab;
         }
 
         .task-item:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .task-item:active {
+            cursor: grabbing;
+        }
+
+        .task-item.dragging {
+            opacity: 0.6;
+            transform: rotate(5deg) scale(1.02);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .task-item.drag-over {
+            border: 2px dashed #9333ea;
+            background: rgba(147, 51, 234, 0.1);
         }
 
         .task-item.completed {
@@ -147,6 +163,48 @@
             50% { opacity: 0.5; }
             100% { opacity: 1; }
         }
+
+        .drag-handle {
+            cursor: grab;
+            transition: color 0.2s ease;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .drag-handle:hover {
+            color: #9333ea;
+        }
+
+        .filters-container {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+            scrollbar-width: thin;
+            scrollbar-color: #4b5563 #1f2937;
+        }
+
+        .filters-container::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .filters-container::-webkit-scrollbar-track {
+            background: #1f2937;
+            border-radius: 3px;
+        }
+
+        .filters-container::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 3px;
+        }
+
+        .filters-container::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
     </style>
 </head>
 <body>
@@ -197,7 +255,8 @@
                     ...task,
                     id: Date.now().toString(),
                     createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
+                    order: tasks.length > 0 ? Math.max(...tasks.map(t => t.order || 0)) + 1 : 0
                 };
                 tasks.push(newTask);
                 const success = SharedTasksAPI.saveTasks(tasks);
@@ -232,6 +291,17 @@
                 const tasks = SharedTasksAPI.getTasks();
                 const pendingTasks = tasks.filter(t => !t.done);
                 return SharedTasksAPI.saveTasks(pendingTasks);
+            },
+
+            // Reordenar tarefas
+            reorderTasks: (reorderedTasks) => {
+                // Atualizar a ordem das tarefas
+                const updatedTasks = reorderedTasks.map((task, index) => ({
+                    ...task,
+                    order: index,
+                    updatedAt: new Date().toISOString()
+                }));
+                return SharedTasksAPI.saveTasks(updatedTasks);
             }
         };
 
@@ -263,13 +333,19 @@
             const [stats, setStats] = useState({ total: 0, completed: 0, pending: 0 });
             const [showPhrasesModal, setShowPhrasesModal] = useState(false);
             const [newPhrase, setNewPhrase] = useState("");
+            
+            // Estados para drag and drop
+            const [draggedTask, setDraggedTask] = useState(null);
+            const [dragOverTask, setDragOverTask] = useState(null);
 
             // Carregar tarefas do "backend" compartilhado
             const loadTasks = useCallback(() => {
                 setIsLoading(true);
                 try {
                     const sharedTasks = SharedTasksAPI.getTasks();
-                    setTasks(sharedTasks);
+                    // Ordenar tarefas pela ordem salva
+                    const sortedTasks = sharedTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
+                    setTasks(sortedTasks);
                     setLastSync(new Date());
                 } catch (error) {
                     console.error("Erro ao carregar tarefas:", error);
@@ -425,6 +501,101 @@
             const refreshTasks = useCallback(() => {
                 loadTasks();
             }, [loadTasks]);
+
+            // Funções para Drag and Drop
+            const handleDragStart = useCallback((e, task) => {
+                setDraggedTask(task);
+                e.dataTransfer.effectAllowed = 'move';
+                // Adicionar um pequeno delay para melhor experiência visual
+                setTimeout(() => {
+                    e.target.classList.add('dragging');
+                }, 0);
+            }, []);
+
+            const handleDragOver = useCallback((e, task) => {
+                e.preventDefault();
+                if (draggedTask && draggedTask.id !== task.id) {
+                    setDragOverTask(task);
+                }
+            }, [draggedTask]);
+
+            const handleDragLeave = useCallback((e) => {
+                e.preventDefault();
+                setDragOverTask(null);
+            }, []);
+
+            const handleDrop = useCallback((e, targetTask) => {
+                e.preventDefault();
+                if (!draggedTask || draggedTask.id === targetTask.id) {
+                    setDraggedTask(null);
+                    setDragOverTask(null);
+                    return;
+                }
+
+                // Reordenar as tarefas
+                const taskList = [...tasks];
+                const draggedIndex = taskList.findIndex(t => t.id === draggedTask.id);
+                const targetIndex = taskList.findIndex(t => t.id === targetTask.id);
+
+                if (draggedIndex !== -1 && targetIndex !== -1) {
+                    // Remover a tarefa arrastada
+                    const [movedTask] = taskList.splice(draggedIndex, 1);
+                    // Inserir na nova posição
+                    taskList.splice(targetIndex, 0, movedTask);
+
+                    // Atualizar estado local
+                    setTasks(taskList);
+                    
+                    // Salvar no "backend" compartilhado
+                    setIsLoading(true);
+                    const success = SharedTasksAPI.reorderTasks(taskList);
+                    if (success) {
+                        setLastSync(new Date());
+                    }
+                    setIsLoading(false);
+                }
+
+                setDraggedTask(null);
+                setDragOverTask(null);
+            }, [draggedTask, tasks]);
+
+            const handleDragEnd = useCallback((e) => {
+                e.target.classList.remove('dragging');
+                setDraggedTask(null);
+                setDragOverTask(null);
+            }, []);
+
+            const moveTaskUp = useCallback((taskId) => {
+                const taskIndex = tasks.findIndex(t => t.id === taskId);
+                if (taskIndex <= 0) return;
+
+                const newTasks = [...tasks];
+                [newTasks[taskIndex - 1], newTasks[taskIndex]] = [newTasks[taskIndex], newTasks[taskIndex - 1]];
+
+                setTasks(newTasks);
+                setIsLoading(true);
+                const success = SharedTasksAPI.reorderTasks(newTasks);
+                if (success) {
+                    setLastSync(new Date());
+                }
+                setIsLoading(false);
+            }, [tasks]);
+
+            const moveTaskDown = useCallback((taskId) => {
+                const taskIndex = tasks.findIndex(t => t.id === taskId);
+                if (taskIndex === -1 || taskIndex >= tasks.length - 1) return;
+
+                const newTasks = [...tasks];
+                [newTasks[taskIndex], newTasks[taskIndex + 1]] = [newTasks[taskIndex + 1], newTasks[taskIndex]];
+
+                setTasks(newTasks);
+                setIsLoading(true);
+                const success = SharedTasksAPI.reorderTasks(newTasks);
+                if (success) {
+                    setLastSync(new Date());
+                }
+                setIsLoading(false);
+            }, [tasks]);
 
             const getTaskPriority = (task) => {
                 if (task.done) return "none";
@@ -753,7 +924,7 @@
 
                             <div className="p-5 border-b border-gray-700">
                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                                    <div className="flex flex-wrap gap-2">
+                                    <div className="filters-container">
                                         {[
                                             { label: "Todas", value: "all", icon: "fas fa-list" },
                                             { label: "Pendentes", value: "pending", icon: "fas fa-hourglass-half" },
@@ -765,7 +936,7 @@
                                                 key={value}
                                                 onClick={() => setFilter(value)}
                                                 disabled={isLoading}
-                                                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-medium transition-all duration-300 text-sm ${
+                                                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-medium transition-all duration-300 text-sm whitespace-nowrap ${
                                                     filter === value
                                                         ? "bg-purple-600 text-white"
                                                         : "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
@@ -777,7 +948,7 @@
                                         ))}
                                     </div>
 
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 mt-3 md:mt-0">
                                         <div className="relative">
                                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                                                 <i className="fas fa-search"></i>
@@ -850,16 +1021,26 @@
                                     </div>
                                 ) : (
                                     <div className="space-y-2.5">
-                                        {visibleTasks.map((t) => {
+                                        {visibleTasks.map((t, index) => {
                                             const priority = getTaskPriority(t);
                                             const badge = getPriorityBadge(priority);
                                             const isOverdue = priority === "urgent" && !t.done;
+                                            const isDragging = draggedTask && draggedTask.id === t.id;
+                                            const isDragOver = dragOverTask && dragOverTask.id === t.id;
                                             
                                             return (
                                                 <div
                                                     key={t.id}
+                                                    draggable={!isLoading}
+                                                    onDragStart={(e) => handleDragStart(e, t)}
+                                                    onDragOver={(e) => handleDragOver(e, t)}
+                                                    onDragLeave={handleDragLeave}
+                                                    onDrop={(e) => handleDrop(e, t)}
+                                                    onDragEnd={handleDragEnd}
                                                     className={`task-item ${
                                                         t.done ? 'completed' : ''
+                                                    } ${isDragging ? 'dragging' : ''} ${
+                                                        isDragOver ? 'drag-over' : ''
                                                     } glass-card rounded-lg p-3.5 border ${
                                                         isOverdue ? 'border-red-700/50' : 
                                                         t.done ? 'border-green-700/30' : 
@@ -870,15 +1051,35 @@
                                                 >
                                                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                                         <div className="flex items-start gap-3 flex-1">
-                                                            <div className="mt-0.5">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={t.done}
-                                                                    onChange={() => toggleDone(t.id)}
-                                                                    disabled={isLoading}
-                                                                    className="w-4.5 h-4.5 rounded border-gray-600 bg-gray-800 text-purple-600 focus:ring-purple-600 focus:ring-offset-0 cursor-pointer transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                    aria-label={`Marcar ${t.title}`}
-                                                                />
+                                                            <div className="flex flex-col gap-1">
+                                                                <div className="mt-0.5">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={t.done}
+                                                                        onChange={() => toggleDone(t.id)}
+                                                                        disabled={isLoading}
+                                                                        className="w-4.5 h-4.5 rounded border-gray-600 bg-gray-800 text-purple-600 focus:ring-purple-600 focus:ring-offset-0 cursor-pointer transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                        aria-label={`Marcar ${t.title}`}
+                                                                    />
+                                                                </div>
+                                                                <div className="flex flex-col gap-0.5">
+                                                                    <button
+                                                                        onClick={() => moveTaskUp(t.id)}
+                                                                        disabled={isLoading || index === 0}
+                                                                        className="drag-handle text-gray-500 hover:text-purple-400 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                        title="Mover para cima"
+                                                                    >
+                                                                        <i className="fas fa-chevron-up text-xs"></i>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => moveTaskDown(t.id)}
+                                                                        disabled={isLoading || index === visibleTasks.length - 1}
+                                                                        className="drag-handle text-gray-500 hover:text-purple-400 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                        title="Mover para baixo"
+                                                                    >
+                                                                        <i className="fas fa-chevron-down text-xs"></i>
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                             
                                                             <div className="flex-1 min-w-0">
@@ -915,6 +1116,9 @@
                                                         </div>
                                                         
                                                         <div className="flex flex-wrap gap-1.5 justify-end">
+                                                            <div className="drag-handle text-gray-400 p-1.5 cursor-grab" title="Arrastar para reordenar">
+                                                                <i className="fas fa-grip-vertical"></i>
+                                                            </div>
                                                             <button 
                                                                 onClick={() => startEdit(t)} 
                                                                 disabled={isLoading}
@@ -994,6 +1198,10 @@
                                         <p className="text-[0.75rem] text-gray-500 mt-0.5">
                                             <i className="fas fa-users mr-1 text-[0.7em]"></i>
                                             Tarefas compartilhadas entre todos os usuários
+                                        </p>
+                                        <p className="text-[0.7rem] text-gray-600 mt-1">
+                                            <i className="fas fa-arrows-alt mr-1 text-[0.65em]"></i>
+                                            Arraste as tarefas para reordenar
                                         </p>
                                     </div>
                                 </div>
@@ -1086,7 +1294,9 @@
                                 <i className="fas fa-code mr-1"></i>
                                 Desenvolvido com ❤️ By D3xt4rz | 
                                 <i className="fas fa-users ml-2 mr-1"></i>
-                                Sistema Compartilhado
+                                Sistema Compartilhado |
+                                <i className="fas fa-arrows-alt ml-2 mr-1"></i>
+                                Arraste para reordenar
                             </p>
                         </footer>
                     </div>
