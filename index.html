@@ -148,23 +148,36 @@
                 localStorage.setItem("dailyTasks_v2", JSON.stringify(tasks));
             }, [tasks]);
 
+            // Função auxiliar para criar data sem problemas de fuso horário
+            const createDate = (dateString, timeString = null) => {
+                if (!dateString) return null;
+                
+                const [year, month, day] = dateString.split('-').map(Number);
+                let date = new Date(year, month - 1, day);
+                
+                if (timeString) {
+                    const [hours, minutes] = timeString.split(':').map(Number);
+                    date.setHours(hours, minutes, 0, 0);
+                } else {
+                    // Se não tem horário, considera o final do dia (23:59)
+                    date.setHours(23, 59, 0, 0);
+                }
+                
+                return date;
+            };
+
             useEffect(() => {
                 const calculateStats = () => {
                     const now = new Date();
                     
                     const completed = tasks.filter(t => t.done).length;
                     const pending = tasks.filter(t => {
-                        if (t.done || (!t.dueDate && !t.dueTime)) return false;
+                        if (t.done) return false;
                         
                         // Verificar se a tarefa está atrasada
                         if (t.dueDate) {
-                            const taskDate = new Date(t.dueDate);
-                            if (t.dueTime) {
-                                const [hours, minutes] = t.dueTime.split(':').map(Number);
-                                taskDate.setHours(hours, minutes, 0, 0);
-                            }
-                            
-                            return taskDate < now;
+                            const taskDate = createDate(t.dueDate, t.dueTime);
+                            return taskDate && taskDate < now;
                         }
                         
                         return false;
@@ -240,35 +253,52 @@
             }, []);
 
             const getTaskPriority = (task) => {
-                if (!task.dueDate && !task.dueTime) return "none";
+                if (task.done) return "none";
+                if (!task.dueDate) return "none";
                 
                 const now = new Date();
-                let taskDateTime = null;
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
                 
-                if (task.dueDate) {
-                    taskDateTime = new Date(task.dueDate);
+                const taskDate = createDate(task.dueDate);
+                if (!taskDate) return "none";
+                
+                // Ajustar para comparar apenas a data (sem hora)
+                const taskDateOnly = new Date(taskDate.getFullYear(), taskDate.getMonth(), taskDate.getDate());
+                
+                // Se a tarefa é para hoje
+                if (taskDateOnly.getTime() === today.getTime()) {
+                    // Se tem horário definido, verificar se está atrasada
                     if (task.dueTime) {
-                        const [hours, minutes] = task.dueTime.split(':').map(Number);
-                        taskDateTime.setHours(hours, minutes, 0, 0);
+                        return taskDate < now ? "urgent" : "high";
                     }
+                    return "high";
                 }
                 
-                if (!taskDateTime) return "none";
+                // Se a tarefa é para antes de hoje (atrasada)
+                if (taskDateOnly < today) return "urgent";
                 
-                const timeDiff = taskDateTime - now;
-                const dayDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+                // Se a tarefa é para amanhã
+                if (taskDateOnly.getTime() === tomorrow.getTime()) return "medium";
                 
-                if (timeDiff < 0) return "urgent";
-                if (dayDiff <= 1) return "high"; // 1 dia ou menos
-                if (dayDiff <= 3) return "medium"; // 3 dias ou menos
+                // Se a tarefa é para os próximos dias (2-3 dias)
+                const dayAfterTomorrow = new Date(tomorrow);
+                dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+                const inThreeDays = new Date(tomorrow);
+                inThreeDays.setDate(inThreeDays.getDate() + 2);
+                
+                if (taskDateOnly >= dayAfterTomorrow && taskDateOnly <= inThreeDays) return "medium";
+                
+                // Tarefas para mais de 3 dias
                 return "low";
             };
 
             const getPriorityBadge = (priority) => {
                 const badges = {
                     urgent: { text: "Atrasado", color: "bg-red-900 text-red-300 border-red-700" },
-                    high: { text: "Em breve", color: "bg-purple-900 text-purple-200 border-purple-700" },
-                    medium: { text: "Próximos dias", color: "bg-amber-900 text-amber-200 border-amber-700" },
+                    high: { text: "Hoje", color: "bg-purple-900 text-purple-200 border-purple-700" },
+                    medium: { text: "Em breve", color: "bg-amber-900 text-amber-200 border-amber-700" },
                     low: { text: "Futuro", color: "bg-emerald-900 text-emerald-200 border-emerald-700" },
                     none: { text: "Sem data", color: "bg-gray-800 text-gray-300 border-gray-700" }
                 };
@@ -278,14 +308,18 @@
             const formatDate = (dateString) => {
                 if (!dateString) return '';
                 
-                const date = new Date(dateString);
+                const date = createDate(dateString);
                 const today = new Date();
                 const tomorrow = new Date(today);
                 tomorrow.setDate(tomorrow.getDate() + 1);
                 
-                if (date.toDateString() === today.toDateString()) {
+                const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const tomorrowOnly = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
+                
+                if (dateOnly.getTime() === todayOnly.getTime()) {
                     return 'Hoje';
-                } else if (date.toDateString() === tomorrow.toDateString()) {
+                } else if (dateOnly.getTime() === tomorrowOnly.getTime()) {
                     return 'Amanhã';
                 } else {
                     return date.toLocaleDateString('pt-BR');
@@ -307,28 +341,22 @@
                 if (filter === "completed") return t.done;
                 if (filter === "pending") return !t.done;
                 if (filter === "overdue") {
-                    if (t.done || (!t.dueDate && !t.dueTime)) return false;
+                    if (t.done || !t.dueDate) return false;
                     
                     const now = new Date();
-                    let taskDateTime = null;
+                    const taskDate = createDate(t.dueDate, t.dueTime);
                     
-                    if (t.dueDate) {
-                        taskDateTime = new Date(t.dueDate);
-                        if (t.dueTime) {
-                            const [hours, minutes] = t.dueTime.split(':').map(Number);
-                            taskDateTime.setHours(hours, minutes, 0, 0);
-                        }
-                    }
-                    
-                    return taskDateTime && taskDateTime < now;
+                    return taskDate && taskDate < now;
                 }
                 if (filter === "today") {
                     if (t.done || !t.dueDate) return false;
                     
                     const today = new Date();
-                    const taskDate = new Date(t.dueDate);
+                    const taskDate = createDate(t.dueDate);
+                    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    const taskDateOnly = new Date(taskDate.getFullYear(), taskDate.getMonth(), taskDate.getDate());
                     
-                    return taskDate.toDateString() === today.toDateString();
+                    return taskDateOnly.getTime() === todayOnly.getTime();
                 }
                 return true;
             });
