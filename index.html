@@ -8,6 +8,9 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -205,6 +208,17 @@
         .filters-container::-webkit-scrollbar-thumb:hover {
             background: #6b7280;
         }
+
+        .online-indicator {
+            animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes ping {
+            75%, 100% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -213,6 +227,21 @@
     <script type="text/babel">
         const { useState, useEffect, useCallback } = React;
         
+        // Configuração do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBMlMkubD980K5ynN5Ud3XEYNWK3Q8RklU",
+            authDomain: "db-test-7e79c.firebaseapp.com",
+            projectId: "db-test-7e79c",
+            storageBucket: "db-test-7e79c.firebasestorage.app",
+            messagingSenderId: "472155269675",
+            appId: "1:472155269675:web:99df5c6d830927e612586e",
+            measurementId: "G-Z21SZ5XF50"
+        };
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
         // JSON padrão para frases de elogio
         const defaultPhrases = {
             "completionTexts": [
@@ -223,90 +252,116 @@
                 "Wiliss ficaria orgulhosa de vc mbm 🥰🥰",
                 "Sem negocio de preguiça xuxuzinho ❤️",
                 "Isso mesmo namolada, isso mesmo ❣️❤️",
-                
             ]
         };
 
-        // Simulação de um backend para tarefas compartilhadas
-        const SharedTasksAPI = {
-            // Chave única para simular um "servidor" compartilhado
-            getStorageKey: () => "shared_tasks_database",
-            
-            // Buscar todas as tarefas
-            getTasks: () => {
-                try {
-                    const raw = localStorage.getItem(SharedTasksAPI.getStorageKey());
-                    return raw ? JSON.parse(raw) : [];
-                } catch (e) {
-                    return [];
-                }
-            },
-            
-            // Salvar todas as tarefas
-            saveTasks: (tasks) => {
-                try {
-                    localStorage.setItem(SharedTasksAPI.getStorageKey(), JSON.stringify(tasks));
-                    return true;
-                } catch (e) {
-                    console.error("Erro ao salvar tarefas:", e);
-                    return false;
-                }
+        // API para Firebase Firestore
+        const FirebaseAPI = {
+            // Buscar todas as tarefas em tempo real
+            getTasksRealtime: (callback) => {
+                return db.collection('tasks')
+                    .orderBy('order', 'asc')
+                    .onSnapshot((snapshot) => {
+                        const tasks = snapshot.docs.map(doc => ({
+                            id: doc.id,
+                            ...doc.data()
+                        }));
+                        callback(tasks);
+                    }, (error) => {
+                        console.error("Erro ao buscar tarefas:", error);
+                    });
             },
             
             // Adicionar uma nova tarefa
-            addTask: (task) => {
-                const tasks = SharedTasksAPI.getTasks();
-                const newTask = {
-                    ...task,
-                    id: Date.now().toString(),
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                    order: tasks.length > 0 ? Math.max(...tasks.map(t => t.order || 0)) + 1 : 0
-                };
-                tasks.push(newTask);
-                const success = SharedTasksAPI.saveTasks(tasks);
-                return success ? newTask : null;
+            addTask: async (task) => {
+                try {
+                    // Primeiro buscar a última ordem para adicionar no final
+                    const lastTaskSnapshot = await db.collection('tasks')
+                        .orderBy('order', 'desc')
+                        .limit(1)
+                        .get();
+                    
+                    const lastOrder = lastTaskSnapshot.empty ? 0 : lastTaskSnapshot.docs[0].data().order + 1;
+                    
+                    const newTask = {
+                        ...task,
+                        order: lastOrder,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    };
+                    
+                    const docRef = await db.collection('tasks').add(newTask);
+                    return { id: docRef.id, ...newTask };
+                } catch (error) {
+                    console.error("Erro ao adicionar tarefa:", error);
+                    throw error;
+                }
             },
             
             // Atualizar uma tarefa existente
-            updateTask: (id, updates) => {
-                const tasks = SharedTasksAPI.getTasks();
-                const taskIndex = tasks.findIndex(t => t.id === id);
-                if (taskIndex === -1) return null;
-                
-                tasks[taskIndex] = {
-                    ...tasks[taskIndex],
-                    ...updates,
-                    updatedAt: new Date().toISOString()
-                };
-                
-                const success = SharedTasksAPI.saveTasks(tasks);
-                return success ? tasks[taskIndex] : null;
+            updateTask: async (id, updates) => {
+                try {
+                    await db.collection('tasks').doc(id).update({
+                        ...updates,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    return true;
+                } catch (error) {
+                    console.error("Erro ao atualizar tarefa:", error);
+                    throw error;
+                }
             },
             
             // Remover uma tarefa
-            deleteTask: (id) => {
-                const tasks = SharedTasksAPI.getTasks();
-                const filteredTasks = tasks.filter(t => t.id !== id);
-                return SharedTasksAPI.saveTasks(filteredTasks);
+            deleteTask: async (id) => {
+                try {
+                    await db.collection('tasks').doc(id).delete();
+                    return true;
+                } catch (error) {
+                    console.error("Erro ao excluir tarefa:", error);
+                    throw error;
+                }
             },
             
             // Limpar tarefas concluídas
-            clearCompleted: () => {
-                const tasks = SharedTasksAPI.getTasks();
-                const pendingTasks = tasks.filter(t => !t.done);
-                return SharedTasksAPI.saveTasks(pendingTasks);
+            clearCompleted: async () => {
+                try {
+                    const snapshot = await db.collection('tasks')
+                        .where('done', '==', true)
+                        .get();
+                    
+                    const batch = db.batch();
+                    snapshot.docs.forEach(doc => {
+                        batch.delete(doc.ref);
+                    });
+                    
+                    await batch.commit();
+                    return true;
+                } catch (error) {
+                    console.error("Erro ao limpar tarefas concluídas:", error);
+                    throw error;
+                }
             },
 
             // Reordenar tarefas
-            reorderTasks: (reorderedTasks) => {
-                // Atualizar a ordem das tarefas
-                const updatedTasks = reorderedTasks.map((task, index) => ({
-                    ...task,
-                    order: index,
-                    updatedAt: new Date().toISOString()
-                }));
-                return SharedTasksAPI.saveTasks(updatedTasks);
+            reorderTasks: async (tasks) => {
+                try {
+                    const batch = db.batch();
+                    
+                    tasks.forEach((task, index) => {
+                        const taskRef = db.collection('tasks').doc(task.id);
+                        batch.update(taskRef, {
+                            order: index,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    });
+                    
+                    await batch.commit();
+                    return true;
+                } catch (error) {
+                    console.error("Erro ao reordenar tarefas:", error);
+                    throw error;
+                }
             }
         };
 
@@ -319,6 +374,7 @@
             const [tasks, setTasks] = useState([]);
             const [isLoading, setIsLoading] = useState(true);
             const [lastSync, setLastSync] = useState(null);
+            const [isOnline, setIsOnline] = useState(true);
 
             const [phrases] = useState(defaultPhrases);
             
@@ -334,26 +390,25 @@
             const [draggedTask, setDraggedTask] = useState(null);
             const [dragOverTask, setDragOverTask] = useState(null);
 
-            // Carregar tarefas do "backend" compartilhado
-            const loadTasks = useCallback(() => {
-                setIsLoading(true);
-                try {
-                    const sharedTasks = SharedTasksAPI.getTasks();
-                    // Ordenar tarefas pela ordem salva
-                    const sortedTasks = sharedTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
-                    setTasks(sortedTasks);
-                    setLastSync(new Date());
-                } catch (error) {
-                    console.error("Erro ao carregar tarefas:", error);
-                } finally {
-                    setIsLoading(false);
-                }
-            }, []);
-
-            // Carregar tarefas ao inicializar
+            // Carregar tarefas em tempo real do Firebase
             useEffect(() => {
-                loadTasks();
-            }, [loadTasks]);
+                const unsubscribe = FirebaseAPI.getTasksRealtime((tasks) => {
+                    // Converter timestamps do Firebase para Date objects
+                    const processedTasks = tasks.map(task => ({
+                        ...task,
+                        createdAt: task.createdAt ? task.createdAt.toDate() : new Date(),
+                        updatedAt: task.updatedAt ? task.updatedAt.toDate() : new Date()
+                    }));
+                    
+                    setTasks(processedTasks);
+                    setLastSync(new Date());
+                    setIsLoading(false);
+                    setIsOnline(true);
+                });
+
+                // Cleanup subscription
+                return () => unsubscribe();
+            }, []);
 
             // Função auxiliar para criar data sem problemas de fuso horário
             const createDate = (dateString, timeString = null) => {
@@ -408,59 +463,66 @@
                 }
             }, [tasks]);
             
-            const addOrUpdateTask = useCallback((e) => {
+            const addOrUpdateTask = useCallback(async (e) => {
                 e.preventDefault();
                 if (!title.trim()) return;
 
                 setIsLoading(true);
                 
-                if (editingId) {
-                    // Atualizar tarefa existente
-                    const success = SharedTasksAPI.updateTask(editingId, {
-                        title: title.trim(),
-                        dueDate: dueDate || null,
-                        dueTime: dueTime || null
-                    });
-                    
-                    if (success) {
-                        loadTasks();
+                try {
+                    if (editingId) {
+                        // Atualizar tarefa existente
+                        await FirebaseAPI.updateTask(editingId, {
+                            title: title.trim(),
+                            dueDate: dueDate || null,
+                            dueTime: dueTime || null
+                        });
+                        
                         setEditingId(null);
+                    } else {
+                        // Adicionar nova tarefa
+                        const newTask = {
+                            title: title.trim(),
+                            dueDate: dueDate || null,
+                            dueTime: dueTime || null,
+                            done: false,
+                        };
+                        
+                        await FirebaseAPI.addTask(newTask);
                     }
-                } else {
-                    // Adicionar nova tarefa
-                    const newTask = {
-                        title: title.trim(),
-                        dueDate: dueDate || null,
-                        dueTime: dueTime || null,
-                        done: false,
-                    };
-                    
-                    const addedTask = SharedTasksAPI.addTask(newTask);
-                    if (addedTask) {
-                        loadTasks();
-                    }
-                }
 
-                setTitle("");
-                setDueDate("");
-                setDueTime("");
-            }, [title, dueDate, dueTime, editingId, loadTasks]);
+                    setTitle("");
+                    setDueDate("");
+                    setDueTime("");
+                } catch (error) {
+                    console.error("Erro ao salvar tarefa:", error);
+                    setIsOnline(false);
+                    alert("Erro ao salvar tarefa. Verifique sua conexão.");
+                } finally {
+                    setIsLoading(false);
+                }
+            }, [title, dueDate, dueTime, editingId]);
 
             const handleStart = useCallback(() => {
                 setShowWelcome(false);
                 localStorage.setItem("dailyTasks_welcomeShown", "true");
             }, []);
             
-            const toggleDone = useCallback((id) => {
+            const toggleDone = useCallback(async (id) => {
                 setIsLoading(true);
                 const task = tasks.find(t => t.id === id);
                 if (task) {
-                    const success = SharedTasksAPI.updateTask(id, { done: !task.done });
-                    if (success) {
-                        loadTasks();
+                    try {
+                        await FirebaseAPI.updateTask(id, { done: !task.done });
+                    } catch (error) {
+                        console.error("Erro ao atualizar tarefa:", error);
+                        setIsOnline(false);
+                        alert("Erro ao atualizar tarefa. Verifique sua conexão.");
+                    } finally {
+                        setIsLoading(false);
                     }
                 }
-            }, [tasks, loadTasks]);
+            }, [tasks]);
 
             const startEdit = useCallback((t) => {
                 setEditingId(t.id);
@@ -469,31 +531,40 @@
                 setDueTime(t.dueTime || "");
             }, []);
 
-            const removeTask = useCallback((id) => {
+            const removeTask = useCallback(async (id) => {
                 if (!confirm("Tem certeza que deseja excluir esta tarefa?")) return;
                 
                 setIsLoading(true);
-                const success = SharedTasksAPI.deleteTask(id);
-                if (success) {
-                    loadTasks();
+                try {
+                    await FirebaseAPI.deleteTask(id);
+                } catch (error) {
+                    console.error("Erro ao excluir tarefa:", error);
+                    setIsOnline(false);
+                    alert("Erro ao excluir tarefa. Verifique sua conexão.");
+                } finally {
+                    setIsLoading(false);
                 }
-            }, [loadTasks]);
+            }, []);
 
-            const clearCompleted = useCallback(() => {
+            const clearCompleted = useCallback(async () => {
                 if (!confirm("Remover todas as tarefas concluídas?")) return;
                 
                 setIsLoading(true);
-                const success = SharedTasksAPI.clearCompleted();
-                if (success) {
-                    loadTasks();
+                try {
+                    await FirebaseAPI.clearCompleted();
+                } catch (error) {
+                    console.error("Erro ao limpar tarefas:", error);
+                    setIsOnline(false);
+                    alert("Erro ao limpar tarefas. Verifique sua conexão.");
+                } finally {
+                    setIsLoading(false);
                 }
-            }, [loadTasks]);
+            }, []);
 
             // Funções para Drag and Drop
             const handleDragStart = useCallback((e, task) => {
                 setDraggedTask(task);
                 e.dataTransfer.effectAllowed = 'move';
-                // Adicionar um pequeno delay para melhor experiência visual
                 setTimeout(() => {
                     e.target.classList.add('dragging');
                 }, 0);
@@ -511,7 +582,7 @@
                 setDragOverTask(null);
             }, []);
 
-            const handleDrop = useCallback((e, targetTask) => {
+            const handleDrop = useCallback(async (e, targetTask) => {
                 e.preventDefault();
                 if (!draggedTask || draggedTask.id === targetTask.id) {
                     setDraggedTask(null);
@@ -533,13 +604,17 @@
                     // Atualizar estado local
                     setTasks(taskList);
                     
-                    // Salvar no "backend" compartilhado
+                    // Salvar no Firebase
                     setIsLoading(true);
-                    const success = SharedTasksAPI.reorderTasks(taskList);
-                    if (success) {
+                    try {
+                        await FirebaseAPI.reorderTasks(taskList);
                         setLastSync(new Date());
+                    } catch (error) {
+                        console.error("Erro ao reordenar tarefas:", error);
+                        setIsOnline(false);
+                    } finally {
+                        setIsLoading(false);
                     }
-                    setIsLoading(false);
                 }
 
                 setDraggedTask(null);
@@ -642,7 +717,6 @@
                 if (phrases.completionTexts.length > 4) {
                     return phrases.completionTexts[4];
                 }
-                // Fallback se não houver frases suficientes
                 return "Continue assim!";
             };
 
@@ -711,12 +785,18 @@
                                             <i className="fas fa-exclamation-circle text-red-400"></i>
                                             <span className="font-medium text-red-300">{stats.pending}</span>
                                         </div>
-                                        {isLoading && (
-                                            <div className="flex items-center gap-1 text-purple-400 sync-indicator">
-                                                <i className="fas fa-sync-alt fa-spin"></i>
-                                                <span className="text-xs">Sincronizando...</span>
+                                        <div className="flex items-center gap-2">
+                                            {isLoading && (
+                                                <div className="flex items-center gap-1 text-purple-400 sync-indicator">
+                                                    <i className="fas fa-sync-alt fa-spin"></i>
+                                                    <span className="text-xs">Sincronizando...</span>
+                                                </div>
+                                            )}
+                                            <div className={`flex items-center gap-1 ${isOnline ? 'text-green-400' : 'text-red-400'}`}>
+                                                <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-400 online-indicator' : 'bg-red-400'}`}></div>
+                                                <span className="text-xs">{isOnline ? 'Online' : 'Offline'}</span>
                                             </div>
-                                        )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -860,7 +940,7 @@
                                                 Carregando tarefas...
                                             </h3>
                                             <p className="text-gray-400 text-sm">
-                                                Conectando ao sistema compartilhado...
+                                                Conectando ao Firebase...
                                             </p>
                                         </div>
                                     </div>
@@ -939,7 +1019,7 @@
                                                             
                                                             <div className="flex-1 min-w-0">
                                                                 <div className={`text-sm font-medium transition-all duration-300 ${
-                                                                    t.done ? "line-through text-gray-500" : "text-gray-200"
+                                                                    t.done ? "line-through text-gray-500" : "text-red-400"
                                                                 }`}>
                                                                     {t.title}
                                                                 </div>
@@ -961,9 +1041,9 @@
                                                                         </span>
                                                                     )}
                                                                     {t.updatedAt && (
-                                                                        <span className="text-xs text-gray-600" title={`Atualizado em: ${new Date(t.updatedAt).toLocaleString('pt-BR')}`}>
+                                                                        <span className="text-xs text-gray-600" title={`Atualizado em: ${t.updatedAt.toLocaleString('pt-BR')}`}>
                                                                             <i className="fas fa-history mr-0.5 text-[0.75em]"></i>
-                                                                            {new Date(t.updatedAt).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
+                                                                            {t.updatedAt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
                                                                         </span>
                                                                     )}
                                                                 </div>
@@ -1050,6 +1130,10 @@
                                             <i className="far fa-clock mr-1.5 text-[0.8em]"></i>
                                             {lastSync ? `Última sincronização: ${lastSync.toLocaleTimeString('pt-BR')}` : 'Sincronizando...'}
                                         </p>
+                                        <p className="text-xs text-green-400">
+                                            <i className="fas fa-users mr-1.5 text-[0.8em]"></i>
+                                            Lista Compartilhada em Tempo Real
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -1059,8 +1143,10 @@
                             <p>
                                 <i className="fas fa-code mr-1"></i>
                                 Desenvolvido com ❤️ By D3xt4rz | 
+                                <i className="fas fa-fire ml-2 mr-1"></i>
+                                Firebase Firestore |
                                 <i className="fas fa-users ml-2 mr-1"></i>
-                                Sistema Compartilhado |
+                                Lista Compartilhada |
                                 <i className="fas fa-arrows-alt ml-2 mr-1"></i>
                                 Arraste para reordenar
                             </p>
