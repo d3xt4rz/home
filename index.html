@@ -219,6 +219,11 @@
                 opacity: 0;
             }
         }
+
+        .task-not-done {
+            border: 2px solid #ef4444 !important;
+            background: rgba(239, 68, 68, 0.05);
+        }
     </style>
 </head>
 <body>
@@ -523,6 +528,19 @@
                     }
                 }
             }, [tasks]);
+
+            const markAsNotDone = useCallback(async (id) => {
+                setIsLoading(true);
+                try {
+                    await FirebaseAPI.updateTask(id, { done: false });
+                } catch (error) {
+                    console.error("Erro ao marcar tarefa como não feita:", error);
+                    setIsOnline(false);
+                    alert("Erro ao atualizar tarefa. Verifique sua conexão.");
+                } finally {
+                    setIsLoading(false);
+                }
+            }, []);
 
             const startEdit = useCallback((t) => {
                 setEditingId(t.id);
@@ -993,33 +1011,50 @@
                                                     onDrop={(e) => handleDrop(e, t)}
                                                     onDragEnd={handleDragEnd}
                                                     className={`task-item ${
-                                                        t.done ? 'completed' : ''
+                                                        t.done ? 'completed' : 'task-not-done'
                                                     } ${isDragging ? 'dragging' : ''} ${
                                                         isDragOver ? 'drag-over' : ''
-                                                    } glass-card rounded-lg p-3.5 border ${
-                                                        isOverdue ? 'border-red-700/50' : 
-                                                        t.done ? 'border-green-700/30' : 
-                                                        'border-gray-700'
+                                                    } glass-card rounded-lg p-3.5 border-2 ${
+                                                        t.done ? 'border-green-500' : 'border-red-500'
                                                     } ${
                                                         editingId === t.id ? 'ring-2 ring-purple-500/50' : ''
                                                     } ${isLoading ? 'opacity-50' : ''}`}
                                                 >
                                                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                                         <div className="flex items-start gap-3 flex-1">
-                                                            <div className="mt-0.5">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={t.done}
-                                                                    onChange={() => toggleDone(t.id)}
+                                                            <div className="flex items-center gap-2">
+                                                                {/* Checkbox para marcar como feita */}
+                                                                <button
+                                                                    onClick={() => toggleDone(t.id)}
                                                                     disabled={isLoading}
-                                                                    className="w-4.5 h-4.5 rounded border-gray-600 bg-gray-800 text-purple-600 focus:ring-purple-600 focus:ring-offset-0 cursor-pointer transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                    aria-label={`Marcar ${t.title}`}
-                                                                />
+                                                                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
+                                                                        t.done 
+                                                                            ? 'bg-green-500 border-green-500 text-white' 
+                                                                            : 'bg-transparent border-gray-500 text-transparent'
+                                                                    } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                                                    title={t.done ? "Marcar como não feita" : "Marcar como feita"}
+                                                                >
+                                                                    {t.done && <i className="fas fa-check text-xs"></i>}
+                                                                </button>
+                                                                
+                                                                {/* Botão X para marcar como não feita */}
+                                                                <button
+                                                                    onClick={() => markAsNotDone(t.id)}
+                                                                    disabled={isLoading || !t.done}
+                                                                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
+                                                                        !t.done 
+                                                                            ? 'bg-red-500 border-red-500 text-white' 
+                                                                            : 'bg-transparent border-gray-500 text-transparent'
+                                                                    } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                                                    title="Marcar como não feita"
+                                                                >
+                                                                    {!t.done && <i className="fas fa-times text-xs"></i>}
+                                                                </button>
                                                             </div>
                                                             
                                                             <div className="flex-1 min-w-0">
                                                                 <div className={`text-sm font-medium transition-all duration-300 ${
-                                                                    t.done ? "line-through text-gray-500" : "text-red-400"
+                                                                    t.done ? "line-through text-gray-500" : "text-white"
                                                                 }`}>
                                                                     {t.title}
                                                                 </div>
